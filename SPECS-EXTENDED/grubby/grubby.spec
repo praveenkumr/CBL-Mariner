@@ -2,7 +2,7 @@ Vendor:         Microsoft Corporation
 Distribution:   Mariner
 Name: grubby
 Version: 8.40
-Release: 41%{?dist}
+Release: 42%{?dist}
 Summary: Command line tool for updating bootloader configs
 License: GPLv2+
 URL: https://github.com/rhinstaller/grubby
@@ -28,6 +28,7 @@ Patch0009: 0009-Improve-man-page-for-info-option.patch
 Patch0010: 0010-Fix-GCC-warnings-about-possible-string-truncations-a.patch
 Patch0011: 0011-Fix-stringop-overflow-warning.patch
 Patch0012: 0012-Fix-maybe-uninitialized-warning.patch
+Patch0013: 0013-Fix-build-RPM-416.patch
 
 BuildRequires: gcc
 BuildRequires: pkgconfig glib2-devel popt-devel 
@@ -135,6 +136,9 @@ current boot environment.
  %{_mandir}/man8/*.8*
 
 %changelog
+* Fri Jan 28 2022 Thomas Crain <thcrain@microsoft.com> - 8.40-42
+- Add Fedora patch file (license: MIT) to fix linking with RPM >= 4.16.0
+
 * Fri Oct 15 2021 Pawel Winogrodzki <pawelwi@microsoft.com> - 8.40-41
 - Initial CBL-Mariner import from Fedora 32 (license: MIT).
 
