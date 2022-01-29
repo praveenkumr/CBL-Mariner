@@ -124,6 +124,7 @@ BuildRequires: xz
 BuildRequires: /usr/bin/qemu-img
 BuildRequires: perl(Win::Hivex)
 BuildRequires: perl(Win::Hivex::Regedit)
+BuildRequires: tdnf
 
 # For language bindings.
 BuildRequires: ocaml
@@ -174,17 +175,12 @@ BuildRequires: attr
 BuildRequires: augeas-libs
 BuildRequires: bash
 BuildRequires: binutils
-%if !0%{?rhel}
 BuildRequires: btrfs-progs
-%endif
 BuildRequires: bzip2
 BuildRequires: coreutils
 BuildRequires: cpio
 BuildRequires: cryptsetup
 BuildRequires: curl
-%if !0%{?rhel}
-#BuildRequires: debootstrap
-%endif
 BuildRequires: dhclient
 BuildRequires: diffutils
 BuildRequires: dosfstools
@@ -229,7 +225,8 @@ BuildRequires: sleuthkit
 BuildRequires: squashfs-tools
 BuildRequires: strace
 %ifarch x86_64
-BuildRequires: syslinux syslinux-devel
+BuildRequires: syslinux
+BuildRequires: syslinux-devel
 %endif
 BuildRequires: systemd
 BuildRequires: tar
@@ -242,7 +239,6 @@ BuildRequires: xz
 BuildRequires: yajl
 BuildRequires: zerofree
 %ifnarch aarch64
-# http://zfs-fuse.net/issues/94
 BuildRequires: zfs-fuse
 %endif
 
@@ -775,8 +771,109 @@ fi
 mv README README.orig
 sed 's/@VERSION@/%{version}/g' < %{SOURCE4} > README
 
+# Re-enable upsteram cache and local repos
+cat <<EOF >> /etc/yumd.repos.d/allrepos.repo
+[local-repo]
+name=Local Build Repo (out/RPMS)
+baseurl=file:///localrpms
+enabled=1
+gpgcheck=0
+skip_if_unavailable=1
+sslverify=0
+
+[upstream-cache-repo]
+name=Cache Repo for upstream RPMs (build/rpm_cache/cache)
+baseurl=file:///upstream-cached-rpms
+enabled=1
+gpgcheck=0
+skip_if_unavailable=1
+sslverify=0
+
+EOF
+
+# Download appliance, since our chroot TDNF config does not have `keepcache=1`
+# Must keep in sync with BRs under "Build requirements for the appliance"
+# Download to
+mkdir -pv /var/cache/tdnf
+tdnf download -y --disablerepo=* \
+  --enablerepo=local-repo --enablerepo=upstream-cache-repo \
+  --alldeps --destdir /var/cache/tdnf \
+    acl \
+    attr \
+    augeas-libs \
+    bash \
+    binutils \
+    btrfs-progs \
+    bzip2 \
+    coreutils \
+    cpio \
+    cryptsetup \
+    curl \
+    dhclient \
+    diffutils \
+    dosfstools \
+    e2fsprogs \
+    file \
+    findutils \
+    gawk \
+    gdisk \
+    genisoimage \
+    gfs2-utils \
+    grep \
+    gzip \
+    hivex \
+    iproute \
+    iputils \
+    kernel \
+    kmod \
+    kpartx \
+    less \
+    libcap \
+    libldm \
+    libselinux \
+    libxml2 \
+    lsof \
+    lsscsi \
+    lvm2 \
+    lzop \
+    mdadm \
+    ntfs-3g ntfsprogs \
+    ntfs-3g-system-compression \
+    openssh-clients \
+    parted \
+    pciutils \
+    pcre \
+    policycoreutils \
+    procps \
+    psmisc \
+    qemu-img \
+    rsync \
+    scrub \
+    sed \
+    sleuthkit \
+    squashfs-tools \
+    strace \
+%ifarch x86_64
+    syslinux \
+    syslinux-devel \
+%endif
+    systemd \
+    tar \
+    udev \
+    util-linux \
+    vim-minimal \
+    which \
+    xfsprogs \
+    xz \
+    yajl \
+    zerofree \
+%ifnarch aarch64
+    zfs-fuse \
+%endif
+
+
 mkdir cachedir repo
-find /var/cache/{dnf,tdnf} -type f -name '*.rpm' -print0 | \
+find /var/cache/tdnf -type f -name '*.rpm' -print0 | \
   xargs -0 -n 1 cp -t repo
 createrepo_c repo
 sed -e "s|@PWD@|$(pwd)|" %{SOURCE6} > yum.conf
