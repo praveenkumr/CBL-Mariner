@@ -25764,29 +25764,9 @@
       "component": {
         "type": "other",
         "other": {
-          "name": "rtctl",
-          "version": "1.13",
-          "downloadUrl": "TBD"
-        }
-      }
-    },
-    {
-      "component": {
-        "type": "other",
-        "other": {
           "name": "rtkit",
           "version": "0.11",
           "downloadUrl": "http://0pointer.de/public/rtkit-0.11.tar.xz"
-        }
-      }
-    },
-    {
-      "component": {
-        "type": "other",
-        "other": {
-          "name": "rt-setup",
-          "version": "2.1",
-          "downloadUrl": "TBD"
         }
       }
     },
