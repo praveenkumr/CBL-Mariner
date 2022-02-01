@@ -1,7 +1,7 @@
 Summary:        CLI tool for spawning and running containers per OCI spec.
 Name:           moby-runc
 Version:        1.0.0~rc95+azure
-Release:        2%{?dist}
+Release:        3%{?dist}
 License:        ASL 2.0
 URL:            https://runc.io/
 
@@ -36,11 +36,11 @@ BuildRequires:  libseccomp
 BuildRequires:  libseccomp-devel
 BuildRequires:  protobuf-devel
 BuildRequires:  protobuf-c-devel
-BuildRequires:  python2-devel
+BuildRequires:  python3-devel
 BuildRequires:  unzip
 BuildRequires:  go-md2man
-Buildrequires:  which
-Buildrequires:  git
+BuildRequires:  which
+BuildRequires:  git
 
 Requires:       glibc
 Requires:       libgcc
@@ -114,6 +114,10 @@ cp %{SOURCE7} %{buildroot}/usr/share/doc/%{name}-%{version}/LICENSE
 %{_mandir}/*/*
 
 %changelog
+* Mon Jan 31 2022 Thomas Crain <thcrain@microsoft.com> - 1.0.0~rc95+azure-3
+- Use python3-devel instead of python2-devel during build
+- License verified
+
 * Tue Jun 08 2021 Henry Beberman <henry.beberman@microsoft.com> 1.0.0~rc95+azure-2
 - Increment release to force republishing using golang 1.15.13.
 * Wed May 19 2021 Andrew Phelps <anphel@microsoft.com> 1.0.0~rc95+azure-1
