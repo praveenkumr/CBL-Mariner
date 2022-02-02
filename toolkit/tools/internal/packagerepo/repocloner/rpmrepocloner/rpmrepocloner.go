@@ -258,7 +258,7 @@ func (r *RpmRepoCloner) Clone(cloneDeps bool, packagesToClone ...*pkgjson.Packag
 
 		logger.Log.Debugf("Cloning: %s", pkgName)
 		args := []string{
-			"--downloaddir",
+			"--destdir",
 			chrootDownloadDir,
 			pkgName,
 		}
