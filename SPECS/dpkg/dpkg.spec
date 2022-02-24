@@ -37,18 +37,8 @@ BuildRequires: perl-devel
 BuildRequires: perl-generators
 BuildRequires: perl-Time-Piece
 BuildRequires: perl(Digest)
-# for /usr/bin/pod2man
-BuildRequires: perl-podlators
 # Needed for --clamp-mtime in dpkg-source -b.
 Requires:      tar >= 2:1.28
-# Need by make check
-BuildRequires: perl(Test::More)
-BuildRequires: perl(IPC::Cmd)
-BuildRequires: perl(Digest::MD5)
-BuildRequires: perl(Digest::SHA)
-BuildRequires: perl(IO::String)
-BuildRequires: perl(Tie::Handle)
-# ./t/dpkg_buildpackage.t ........ skipped: requires command fakeroot
 BuildRequires: fakeroot
 
 Requires(post): coreutils
@@ -184,13 +174,11 @@ chmod +x %{__perl_requires}
 %build
 autoreconf
 %configure --disable-linker-optimisations \
-        --with-admindir=%{_localstatedir}/lib/dpkg \
-        --runstatedir=/run \
-        --with-libselinux \
+        --without-libselinux \
         --without-libmd \
-        --with-libz \
-        --with-liblzma \
-        --with-libbz2
+        --without-libz \
+        --without-liblzma \
+        --without-libbz2
 
 # todo add this
 #--with-devlibdir=\$${prefix}/lib/$(DEB_HOST_MULTIARCH) \
