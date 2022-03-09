@@ -1,5 +1,6 @@
 {
     "packages": [
+	"dpkg",
         "shim",
         "grub2-efi-binary",
         "ca-certificates",

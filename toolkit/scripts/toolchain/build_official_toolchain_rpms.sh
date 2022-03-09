@@ -208,6 +208,7 @@ cp /etc/resolv.conf $LFS/etc/
 chroot_and_print_installed_rpms
 
 echo Building final list of toolchain RPMs
+
 build_rpm_in_chroot_no_install mariner-rpm-macros
 copy_rpm_subpackage mariner-check-macros
 chroot_and_install_rpms mariner-rpm-macros
@@ -522,6 +523,56 @@ chroot_and_install_rpms asciidoc
 build_rpm_in_chroot_no_install ca-certificates
 
 build_rpm_in_chroot_no_install mariner-repos
+
+#dpkg
+#build_rpm_in_chroot_no_install dotconf
+#chroot_and_install_rpms dotconf
+#build_rpm_in_chroot_no_install opensp
+#chroot_and_install_rpms opensp
+#build_rpm_in_chroot_no_install openjade
+#chroot_and_install_rpms openjade
+
+#required for libdatrie
+#chroot_and_install_rpms autoconf
+#chroot_and_install_rpms automake
+#chroot_and_install_rpms libtool
+#build_rpm_in_chroot_no_install doxygen
+#chroot_and_install_rpms doxygen
+#
+#build_rpm_in_chroot_no_install libdatrie
+#chroot_and_install_rpms libdatrie
+#build_rpm_in_chroot_no_install libthai
+#chroot_and_install_rpms libthai
+#build_rpm_in_chroot_no_install sombok
+#chroot_and_install_rpms sombok
+#build_rpm_in_chroot_no_install perl-Digest-SHA1
+#chroot_and_install_rpms perl-Digest-SHA1
+#build_rpm_in_chroot_no_install perl-Encode-EUCJPASCII
+#chroot_and_install_rpms perl-Encode-EUCJPASCII
+#build_rpm_in_chroot_no_install perl-IO-String
+#chroot_and_install_rpms perl-IO-String
+#build_rpm_in_chroot_no_install perl-MIME-Charset
+#chroot_and_install_rpms perl-MIME-Charset
+#build_rpm_in_chroot_no_install perl-SGMLSpm
+#chroot_and_install_rpms perl-SGMLSpm
+#build_rpm_in_chroot_no_install perl-TermReadKey
+#chroot_and_install_rpms perl-TermReadKey
+#build_rpm_in_chroot_no_install perl-Test-Pod
+#chroot_and_install_rpms perl-Test-Pod
+#build_rpm_in_chroot_no_install perl-Text-CharWidth
+#chroot_and_install_rpms perl-Text-CharWidth
+#build_rpm_in_chroot_no_install perl-Text-WrapI18N
+#chroot_and_install_rpms perl-Text-WrapI18N
+#build_rpm_in_chroot_no_install perl-TimeDate
+#chroot_and_install_rpms perl-TimeDate
+#build_rpm_in_chroot_no_install perl-Unicode-LineBreak
+#chroot_and_install_rpms perl-Unicode-LineBreak
+#build_rpm_in_chroot_no_install perl-gettext
+#chroot_and_install_rpms perl-gettext
+#build_rpm_in_chroot_no_install po4a
+#chroot_and_install_rpms po4a
+build_rpm_in_chroot_no_install dpkg
+chroot_and_install_rpms dpkg
 
 chroot_and_print_installed_rpms
 

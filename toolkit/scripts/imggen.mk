@@ -9,6 +9,7 @@ config_other_files       = $(if $(CONFIG_FILE),$(shell find $(CONFIG_BASE_DIR)))
 assets_dir               = $(RESOURCES_DIR)/assets/
 assets_files             = $(shell find $(assets_dir))
 imggen_local_repo        = $(MANIFESTS_DIR)/image/local.repo
+imggen_deb_local_repo    = /home/kumarpraveen/REPO/myrepo.list
 imagefetcher_local_repo  = $(MANIFESTS_DIR)/package/local.repo
 imagefetcher_cloned_repo = $(MANIFESTS_DIR)/package/fetcher.repo
 ifeq ($(build_arch),aarch64)
@@ -27,6 +28,7 @@ imggen_rpms = $(shell find $(RPMS_DIR) -type f -name '*.rpm')
 imggen_config_dir                    = $(IMAGEGEN_DIR)/$(config_name)
 workspace_dir                        = $(imggen_config_dir)/workspace
 local_and_external_rpm_cache         = $(imggen_config_dir)/package_repo
+local_and_external_deb_cache         = /home/kumarpraveen/REPO
 external_rpm_cache                   = $(imggen_config_dir)/external_package_repo
 image_fetcher_tmp_dir                = $(imggen_config_dir)/fetcher_tmp
 image_roaster_tmp_dir                = $(imggen_config_dir)/roaster_tmp
@@ -124,7 +126,10 @@ $(STATUS_FLAGS_DIR)/imager_disk_output.flag: $(go-imager) $(image_package_cache_
 		--tdnf-worker $(BUILD_DIR)/worker/worker_chroot.tar.gz \
 		--repo-file=$(imggen_local_repo) \
 		--assets $(assets_dir) \
-		--output-dir $(imager_disk_output_dir) && \
+		--output-dir $(imager_disk_output_dir) \
+		--debian-localrepo $(local_and_external_deb_cache) \
+		--debian-repofile $(imggen_deb_local_repo) \
+		--debian-image && \
 	touch $@
 
 # Sometimes files will have been deleted, that is fine so long as we were able to detect the change

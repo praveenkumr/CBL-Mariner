@@ -16,6 +16,7 @@
         "dbus",
         "dosfstools",
         "dracut",
+	"dpkg",
         "e2fsprogs",
         "efibootmgr",
         "efivar",

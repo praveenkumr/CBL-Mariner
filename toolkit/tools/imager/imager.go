@@ -30,8 +30,11 @@ var (
 	assets          = app.Flag("assets", "Path to assets directory.").ExistingDir()
 	baseDirPath     = app.Flag("base-dir", "Base directory for relative file paths from the config. Defaults to config's directory.").ExistingDir()
 	outputDir       = app.Flag("output-dir", "Path to directory to place final image.").ExistingDir()
+	debianLocalRepo = app.Flag("debian-localrepo", "Path to local Debian repo").ExistingDir()
+	debianRepoFile  = app.Flag("debian-repofile", "Full path to local.repo.").ExistingFile()
 	liveInstallFlag = app.Flag("live-install", "Enable to perform a live install to the disk specified in config file.").Bool()
 	emitProgress    = app.Flag("emit-progress", "Write progress updates to stdout, such as percent complete and current action.").Bool()
+	debianImage	= app.Flag("debian-image", "Generate Debian image").Bool()
 	logFile         = exe.LogFileFlag(app)
 	logLevel        = exe.LogLevelFlag(app)
 )
@@ -69,18 +72,20 @@ func main() {
 	// Currently only process 1 system config
 	systemConfig := config.SystemConfigs[defaultSystemConfig]
 
-	err = buildSystemConfig(systemConfig, config.Disks, *outputDir, *buildDir)
+	err = buildSystemConfig(systemConfig, config.Disks, *outputDir, *buildDir, *debianImage)
 	logger.PanicOnError(err, "Failed to build system configuration")
 
 }
 
-func buildSystemConfig(systemConfig configuration.SystemConfig, disks []configuration.Disk, outputDir, buildDir string) (err error) {
+func buildSystemConfig(systemConfig configuration.SystemConfig, disks []configuration.Disk, outputDir, buildDir string, debian bool) (err error) {
 	logger.Log.Infof("Building system configuration (%s)", systemConfig.Name)
 
 	const (
 		assetsMountPoint    = "/installer"
 		localRepoMountPoint = "/mnt/cdrom/RPMS"
+		localDebRepoMountPoint = "/debian"
 		repoFileMountPoint  = "/etc/yum.repos.d"
+		repoDebFileMountPoint   = "/etc/apt/sources.list.d"
 		setupRoot           = "/setuproot"
 		installRoot         = "/installroot"
 		rootID              = "rootfs"
@@ -188,6 +193,8 @@ func buildSystemConfig(systemConfig configuration.SystemConfig, disks []configur
 			safechroot.NewMountPoint(*assets, assetsMountPoint, "", safechroot.BindMountPointFlags, ""),
 			safechroot.NewMountPoint(*localRepo, localRepoMountPoint, "", safechroot.BindMountPointFlags, ""),
 			safechroot.NewMountPoint(filepath.Dir(*repoFile), repoFileMountPoint, "", safechroot.BindMountPointFlags, ""),
+			safechroot.NewMountPoint(*debianLocalRepo, localDebRepoMountPoint, "", safechroot.BindMountPointFlags, ""),
+			safechroot.NewMountPoint(filepath.Dir(*debianRepoFile), repoDebFileMountPoint, "", safechroot.BindMountPointFlags, ""),
 		}
 		extraMountPoints = append(extraMountPoints, additionalExtraMountPoints...)
 
@@ -208,7 +215,7 @@ func buildSystemConfig(systemConfig configuration.SystemConfig, disks []configur
 		}
 
 		err = setupChroot.Run(func() error {
-			return buildImage(mountPointMap, mountPointToFsTypeMap, mountPointToMountArgsMap, mountPointToOverlayMap, packagesToInstall, systemConfig, diskDevPath, isRootFS, encryptedRoot, readOnlyRoot, diffDiskBuild)
+			return buildImage(mountPointMap, mountPointToFsTypeMap, mountPointToMountArgsMap, mountPointToOverlayMap, packagesToInstall, systemConfig, diskDevPath, isRootFS, encryptedRoot, readOnlyRoot, diffDiskBuild, debian)
 		})
 		if err != nil {
 			logger.Log.Error("Failed to build image")
@@ -240,7 +247,7 @@ func buildSystemConfig(systemConfig configuration.SystemConfig, disks []configur
 			}
 		}
 	} else {
-		err = buildImage(mountPointMap, mountPointToFsTypeMap, mountPointToMountArgsMap, mountPointToOverlayMap, packagesToInstall, systemConfig, diskDevPath, isRootFS, encryptedRoot, readOnlyRoot, diffDiskBuild)
+		err = buildImage(mountPointMap, mountPointToFsTypeMap, mountPointToMountArgsMap, mountPointToOverlayMap, packagesToInstall, systemConfig, diskDevPath, isRootFS, encryptedRoot, readOnlyRoot, diffDiskBuild, debian)
 		if err != nil {
 			logger.Log.Error("Failed to build image")
 			return
@@ -451,7 +458,7 @@ func cleanupExtraFilesInChroot(chroot *safechroot.Chroot) (err error) {
 	})
 	return
 }
-func buildImage(mountPointMap, mountPointToFsTypeMap, mountPointToMountArgsMap map[string]string, mountPointToOverlayMap map[string]*installutils.Overlay, packagesToInstall []string, systemConfig configuration.SystemConfig, diskDevPath string, isRootFS bool, encryptedRoot diskutils.EncryptedRootDevice, readOnlyRoot diskutils.VerityDevice, diffDiskBuild bool) (err error) {
+func buildImage(mountPointMap, mountPointToFsTypeMap, mountPointToMountArgsMap map[string]string, mountPointToOverlayMap map[string]*installutils.Overlay, packagesToInstall []string, systemConfig configuration.SystemConfig, diskDevPath string, isRootFS bool, encryptedRoot diskutils.EncryptedRootDevice, readOnlyRoot diskutils.VerityDevice, diffDiskBuild bool, debian bool) (err error) {
 	const (
 		installRoot       = "/installroot"
 		verityWorkingDir  = "verityworkingdir"
@@ -491,8 +498,18 @@ func buildImage(mountPointMap, mountPointToFsTypeMap, mountPointToMountArgsMap m
 		setupChrootPackages = append(setupChrootPackages, verityPackages...)
 	}
 
+	//if debian {
+	//	logger.Log.Infof("Debug : Install dpkg to root.")
+	//	err = installutils.InstallDpkgToRoot()
+	//	if err != nil {
+	//		err = fmt.Errorf("failed to install dpkg to chroot")
+	//		return
+	//	}
+	//}
+
 	for _, setupChrootPackage := range setupChrootPackages {
-		_, err = installutils.TdnfInstall(setupChrootPackage, rootDir)
+		logger.Log.Debugf("DEBUG: install chroot pkg : %v rootdir  %v", setupChrootPackage, rootDir)
+		_, err = installutils.PkgInstall(setupChrootPackage, rootDir, debian)
 		if err != nil {
 			err = fmt.Errorf("failed to install required setup chroot package '%s': %w", setupChrootPackage, err)
 			return
@@ -511,7 +528,7 @@ func buildImage(mountPointMap, mountPointToFsTypeMap, mountPointToMountArgsMap m
 	defer installChroot.Close(leaveChrootOnDisk)
 
 	// Populate image contents
-	err = installutils.PopulateInstallRoot(installChroot, packagesToInstall, systemConfig, installMap, mountPointToFsTypeMap, mountPointToMountArgsMap, isRootFS, encryptedRoot, diffDiskBuild, hidepidEnabled)
+	err = installutils.PopulateInstallRoot(installChroot, packagesToInstall, systemConfig, installMap, mountPointToFsTypeMap, mountPointToMountArgsMap, isRootFS, encryptedRoot, diffDiskBuild, hidepidEnabled, debian)
 	if err != nil {
 		err = fmt.Errorf("failed to populate image contents: %s", err)
 		return

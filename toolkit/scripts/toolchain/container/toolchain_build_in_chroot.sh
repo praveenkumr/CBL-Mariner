@@ -1185,6 +1185,20 @@ install -p python.attr /usr/lib/rpm/fileattrs/python.attr
 
 touch /logs/status_rpm_complete
 
+# dpkg build
+DPKG_WITH_VERSION=dpkg_1.20.9
+echo $DPKG_WITH_VERSION
+tar xf "$DPKG_WITH_VERSION".tar.xz
+pushd "$DPKG_WITH_VERSION"
+autoreconf -i -v -f
+./configure --disable-linker-optimisations --without-libselinux --without-libmd --without-libz --without-liblzma --without-libbz2
+make
+make install
+popd
+rm -rf "$DPKG_WITH_VERSION"
+touch /var/lib/dpkg/status
+touch /logs/status_dpkg_complete
+
 # Cleanup
 rm -rf /tmp/*
 
