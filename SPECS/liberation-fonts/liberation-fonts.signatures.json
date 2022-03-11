@@ -1,0 +1,12 @@
+{
+ "Signatures": {
+  "liberation-fonts-2.1.5.tar.gz": "fb22c2109dcbb25202aeb6202c0a58fd2e536dbf7c72879c4bbfa2b8a9a75d60",
+  "liberation-fonts-mono.conf": "238aa4fab2c0201611a203c938d38296118cae605055768c06955a8d85697b22",
+  "liberation-fonts-sans.conf": "2a63fe17a2873c1021076a1fdfc02057a0e7f19ebd19a3fab3a56bf3eddf79cd",
+  "liberation-fonts-serif.conf": "dca84cb4b7ec2bf6ee3dc822b73f5a32e0e3d009056e7ba9ba3a12812687330c",
+  "liberation-mono.metainfo.xml": "cd8bf6d46603c6cd6296bfb93f55da57584ec5e32af7ecda7c77bfeee582f7e6",
+  "liberation-sans.metainfo.xml": "3e43aa2779696905ea30b10e9f41d6397823cec12ce5110a0f0da8875f60e912",
+  "liberation-serif.metainfo.xml": "f9af6933094df81d090db8d620fa5765a627af24e18ae7ec58475a475a1e4ff7",
+  "liberation.metainfo.xml": "fa93b3f6ab488a83646af170ceb2c46c6bd595bb1bf5e26e62d6d83f50b9cac7"
+ }
+}

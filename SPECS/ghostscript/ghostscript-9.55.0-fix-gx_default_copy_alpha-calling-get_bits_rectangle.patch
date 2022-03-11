@@ -1,0 +1,12 @@
+diff -up ghostscript-9.55.0/base/gdevdbit.c.fix-gx_default_copy_alpha-calling-get_bits_rectangle ghostscript-9.55.0/base/gdevdbit.c
+--- ghostscript-9.55.0/base/gdevdbit.c.fix-gx_default_copy_alpha-calling-get_bits_rectangle	2021-12-30 18:39:58.655089208 -0500
++++ ghostscript-9.55.0/base/gdevdbit.c	2021-12-30 18:40:57.458462173 -0500
+@@ -379,7 +379,7 @@ gx_default_copy_alpha(gx_device * dev, c
+             int l_xprev = x;
+             gs_get_bits_params_t params;
+ 
+-            params.options = (GB_ALIGN_ANY |
++            params.options = (GB_ALIGN_STANDARD |
+                               (GB_RETURN_COPY | GB_RETURN_POINTER) |
+                               GB_OFFSET_0 |
+                               GB_RASTER_STANDARD | GB_PACKING_CHUNKY |

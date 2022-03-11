@@ -1,0 +1,7 @@
+{
+ "Signatures": {
+  "gpgkey-F576AAAC1B0FF849792D8CB129A794FD2272BC86.gpg": "15cb5163c94829f6d61ee2716cfb8971ac6dfca33c5af161649ee58a8ea8c1b4",
+  "time-1.9.tar.gz": "fbacf0c81e62429df3e33bda4cee38756604f18e01d977338e23306a3e3b521e",
+  "time-1.9.tar.gz.sig": "7553b491501346605b9b6e7ee564495dd3f00e3d1f8def02f086c9dd1db85b3a"
+ }
+}

@@ -1,0 +1,127 @@
+diff --git a/cmd/dot/dot.1 b/cmd/dot/dot.1
+index 986b262..e9c56f2 100644
+--- a/cmd/dot/dot.1
++++ b/cmd/dot/dot.1
+@@ -352,7 +352,7 @@ in the layout.
+ layout the graph.
+ .PP
+ \fBstart=\fIval\fR. Adjusts the random initial placement of nodes
+-with no specified position.  If \fIval\fP is is an integer,
++with no specified position.  If \fIval\fP is an integer,
+ it is used as the seed for the random number generator.
+ If \fIval\fP is not an integer, a random system\(hygenerated integer,
+ such as the process ID or current time, is used as the seed.
+@@ -635,6 +635,22 @@ As usual, edge layout is guided by the \fBsplines\fR attribute.
+ .PP
+ \fB\-y\fR invert y coordinate in output.
+ .PP
++\fB\-o\fIfile\fR write output to \fIfile\fP.
++.PP
++\fB\-x\fP reduce graph.
++.PP
++\fB\-Lg\fP don't use grid.
++.PP
++\fB\-LO\fP use old attractive force.
++.PP
++\fB\-Ln\fIi\fR set number of iterations to \fIi\fP.
++.PP
++\fB\-LU\fIi\fR set unscaled factor to \fIi\fP.
++.PP
++\fB\-LC\fIv\fR set overlap expansion factor to \fIv\fP.
++.PP
++\fB\-LT\fR[*]\fIv\fR set temperature (temperature factor) to \fIv\fP.
++.PP
+ \fB\-V\fP (version) prints version information and exits.
+ .PP
+ \fB\-?\fP prints the usage and exits.
+diff --git a/cmd/dot/osage.1 b/cmd/dot/osage.1
+index 0efbf90..5eded8b 100644
+--- a/cmd/dot/osage.1
++++ b/cmd/dot/osage.1
+@@ -404,6 +404,22 @@ If \fB\-l\fP is given by itself, the standard library is omitted.
+ .PP
+ \fB\-O\fP automatically generate output filenames based on the input filename and the \-T format.
+ .PP
++\fB\-o\fIfile\fR write output to \fIfile\fP.
++.PP
++\fB\-x\fP reduce graph.
++.PP
++\fB\-Lg\fP don't use grid.
++.PP
++\fB\-LO\fP use old attractive force.
++.PP
++\fB\-Ln\fIi\fR set number of iterations to \fIi\fP.
++.PP
++\fB\-LU\fIi\fR set unscaled factor to \fIi\fP.
++.PP
++\fB\-LC\fIv\fR set overlap expansion factor to \fIv\fP.
++.PP
++\fB\-LT\fR[*]\fIv\fR set temperature (temperature factor) to \fIv\fP.
++.PP
+ \fB\-v\fP (verbose) prints various information useful for debugging.
+ .PP
+ \fB\-V\fP (version) prints version information and exits.
+diff --git a/cmd/dot/patchwork.1 b/cmd/dot/patchwork.1
+index 7fe68fb..852f516 100644
+--- a/cmd/dot/patchwork.1
++++ b/cmd/dot/patchwork.1
+@@ -398,6 +398,22 @@ If \fB\-l\fP is given by itself, the standard library is omitted.
+ .PP
+ \fB\-O\fP automatically generate output filenames based on the input filename and the \-T format.
+ .PP
++\fB\-o\fIfile\fR write output to \fIfile\fP.
++.PP
++\fB\-x\fP reduce graph.
++.PP
++\fB\-Lg\fP don't use grid.
++.PP
++\fB\-LO\fP use old attractive force.
++.PP
++\fB\-Ln\fIi\fR set number of iterations to \fIi\fP.
++.PP
++\fB\-LU\fIi\fR set unscaled factor to \fIi\fP.
++.PP
++\fB\-LC\fIv\fR set overlap expansion factor to \fIv\fP.
++.PP
++\fB\-LT\fR[*]\fIv\fR set temperature (temperature factor) to \fIv\fP.
++.PP
+ \fB\-v\fP (verbose) prints various information useful for debugging.
+ .PP
+ \fB\-V\fP (version) prints version information and exits.
+diff --git a/cmd/gvmap/cluster.1 b/cmd/gvmap/cluster.1
+index 15b0332..188dcd6 100644
+--- a/cmd/gvmap/cluster.1
++++ b/cmd/gvmap/cluster.1
+@@ -51,6 +51,9 @@ Specifies that output should go into the file \fIoutfile\fP. By default,
+ .TP
+ .BI \-v 
+ Verbose mode.
++.TP
++.BI \-?
++Prints the usage and exits.
+ .SH EXAMPLES
+ .PP
+ Applying 
+diff --git a/cmd/tools/unflatten.1 b/cmd/tools/unflatten.1
+index 7857cf0..089496f 100644
+--- a/cmd/tools/unflatten.1
++++ b/cmd/tools/unflatten.1
+@@ -3,7 +3,7 @@
+ unflatten \- adjust directed graphs to improve layout aspect ratio
+ .SH SYNOPSIS
+ .B unflatten
+-[\fB\-f\fR]
++[\fB\-f?\fR]
+ [\fB\-l\fIlen\fR]
+ [\fB\-c\fIlen\fR
+ ] [
+@@ -41,6 +41,9 @@ Form disconnected nodes into chains of up to \fIlen\fP nodes.
+ .BI \-o " outfile"
+ causes the output to be written to the specified file; by default,
+ output is written to \fBstdout\fP.
++.TP
++.BI \-?
++Prints the usage and exits.
+ .SH OPERANDS
+ The following operand is supported:
+ .TP 8

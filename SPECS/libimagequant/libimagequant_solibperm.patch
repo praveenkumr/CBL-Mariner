@@ -1,0 +1,12 @@
+diff -rupN --no-dereference libimagequant-2.14.1/Makefile libimagequant-2.14.1-new/Makefile
+--- libimagequant-2.14.1/Makefile	2021-02-28 19:12:44.000000000 +0100
++++ libimagequant-2.14.1-new/Makefile	2021-03-03 00:00:30.634870628 +0100
+@@ -115,7 +115,7 @@ install: all $(PKGCONFIG)
+ 	install -d $(DESTDIR)$(PKGCONFIGDIR)
+ 	install -d $(DESTDIR)$(INCLUDEDIR)
+ 	install -m 644 $(STATICLIB) $(DESTDIR)$(LIBDIR)/$(STATICLIB)
+-	install -m 644 $(SHAREDLIBVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIBVER)
++	install -m 755 $(SHAREDLIBVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIBVER)
+ 	ln -sf $(SHAREDLIBVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB)
+ 	install -m 644 $(PKGCONFIG) $(DESTDIR)$(PKGCONFIGDIR)/$(PKGCONFIG)
+ 	install -m 644 libimagequant.h $(DESTDIR)$(INCLUDEDIR)/libimagequant.h

@@ -1,0 +1,11 @@
+diff -up stunnel-5.61/tools/stunnel.service.in.systemd-service stunnel-5.61/tools/stunnel.service.in
+--- stunnel-5.61/tools/stunnel.service.in.systemd-service	2022-01-10 19:16:30.973923459 +0100
++++ stunnel-5.61/tools/stunnel.service.in	2022-01-10 19:17:08.588605718 +0100
+@@ -6,6 +6,7 @@ After=syslog.target network-online.targe
+ ExecStart=@bindir@/stunnel
+ ExecReload=/bin/kill -HUP $MAINPID
+ Type=forking
++PrivateTmp=true
+ 
+ [Install]
+ WantedBy=multi-user.target

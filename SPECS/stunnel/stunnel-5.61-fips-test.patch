@@ -1,0 +1,58 @@
+Skip FIPS tests if FIPS is unconfigured
+
+When built against OpenSSL 3 with the enable-fips option, the FIPS
+shared library can be loaded, but unless the system administrator has
+run openssl fipsinstall and modified the OpenSSL configuration, FIPS
+mode will still fail with an error message saying it is missing config
+data.
+
+Since this does not indicate a problem with stunnel's code, but with the
+underlying OpenSSL setup, skip the test if this occurs. This is the same
+behavior when running against a copy of OpenSSL 3.x that was not built with
+'enable-fips'.
+diff -up stunnel-5.61/tests/plugins/p10_fips.py.fips-tests stunnel-5.61/tests/plugins/p10_fips.py
+--- stunnel-5.61/tests/plugins/p10_fips.py.fips-tests	2022-01-12 11:40:11.121241545 +0100
++++ stunnel-5.61/tests/plugins/p10_fips.py	2022-01-12 11:45:01.791364483 +0100
+@@ -29,7 +29,8 @@ class FIPSTest(StunnelTest):
+         self.events.skip = [
+             "FIPS provider not available",
+             "fips mode not supported",
+-            r"FIPS PROVIDER.*could not load the shared library"
++            r"FIPS PROVIDER.*could not load the shared library",
++            r"FIPS PROVIDER.*missing config data"
+         ]
+         self.events.failure = [
+             "peer did not return a certificate",
+diff -up stunnel-5.61/tests/plugins/p11_fips_cipher.py.fips-tests stunnel-5.61/tests/plugins/p11_fips_cipher.py
+--- stunnel-5.61/tests/plugins/p11_fips_cipher.py.fips-tests	2022-01-12 11:40:16.192330329 +0100
++++ stunnel-5.61/tests/plugins/p11_fips_cipher.py	2022-01-12 11:52:22.159227499 +0100
+@@ -30,7 +30,8 @@ class FailureCipherFIPS(StunnelTest):
+         self.events.skip = [
+             "FIPS provider not available",
+             "fips mode not supported",
+-            r"FIPS PROVIDER.*could not load the shared library"
++            r"FIPS PROVIDER.*could not load the shared library",
++            r"FIPS PROVIDER.*missing config data"
+         ]
+         self.events.count = 1
+         self.events.success = [
+@@ -86,7 +87,8 @@ class FailureCiphersuitesFIPS(StunnelTes
+         self.events.skip = [
+             "FIPS provider not available",
+             "fips mode not supported",
+-            r"FIPS PROVIDER.*could not load the shared library"
++            r"FIPS PROVIDER.*could not load the shared library",
++            r"FIPS PROVIDER.*missing config data"
+         ]
+         self.events.count = 1
+         self.events.success = [
+@@ -145,7 +147,8 @@ class FailureEllipticCurveFIPS(StunnelTe
+         self.events.skip = [
+             "FIPS provider not available",
+             "fips mode not supported",
+-            r"FIPS PROVIDER.*could not load the shared library"
++            r"FIPS PROVIDER.*could not load the shared library",
++            r"FIPS PROVIDER.*missing config data"
+         ]
+         self.events.count = 1
+         self.events.success = [

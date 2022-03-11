@@ -1,0 +1,7 @@
+{
+ "Signatures": {
+  "opensmtpd-6.8.0p2.tar.gz": "51bf05312fe56764748faab9e63170bfbb7c7d84a37c4117b62b2681eb3a4d17",
+  "opensmtpd.pam": "b0fb611f3e88f94068ee2d5b7e26d433283ad2d3c2dbf11c36eceadac6bcc91a",
+  "opensmtpd.service": "eea4f1eeb2958cbc052cf3f41dd2979856bcde689f9adcb70c77f6569e28f27d"
+ }
+}

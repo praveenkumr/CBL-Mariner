@@ -1,0 +1,9 @@
+{
+ "Signatures": {
+  "mono-6.12.0.122.tar.xz": "29c277660fc5e7513107aee1cbf8c5057c9370a4cdfeda2fc781be6986d89d23",
+  "mono-find-provides": "e07d151cdc59e2b81b1c9477c6b905f3178e87852bdf1d30705727664d7bb8ac",
+  "mono-find-requires": "19b3ee29a04a08da851648a9c2397b2fdbf49b8dcf2705aead99e47ba4b70713",
+  "mono.attr": "a6613b063c518fba4895b0fbc97221d19f56552a27583c3cba0f4d5e479db13e",
+  "mono.snk": "d34528ba4e66cd66a6ace3ab8a53466a462baf997229ca21fda86b93356eabf9"
+ }
+}

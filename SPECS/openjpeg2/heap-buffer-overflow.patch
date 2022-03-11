@@ -1,0 +1,22 @@
+diff -rupN --no-dereference openjpeg-2.4.0/src/bin/common/color.c openjpeg-2.4.0-new/src/bin/common/color.c
+--- openjpeg-2.4.0/src/bin/common/color.c	2020-12-28 21:59:39.000000000 +0100
++++ openjpeg-2.4.0-new/src/bin/common/color.c	2021-05-27 23:46:46.961130438 +0200
+@@ -368,12 +368,15 @@ static void sycc420_to_rgb(opj_image_t *
+ 
+             sycc_to_rgb(offset, upb, *y, *cb, *cr, r, g, b);
+ 
+-            ++y;
++            if (*y != img->comps[0].data[loopmaxh])
++                ++y;
+             ++r;
+             ++g;
+             ++b;
+-            ++cb;
+-            ++cr;
++            if (*cb != img->comps[1].data[loopmaxh])
++                ++cb;
++            if (*cr != img->comps[2].data[loopmaxh])
++                ++cr;
+         }
+         if (j < maxw) {
+             sycc_to_rgb(offset, upb, *y, *cb, *cr, r, g, b);

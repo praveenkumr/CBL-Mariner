@@ -1,0 +1,24 @@
+From c98de971e5f453f50f898494b7791feb02302f62 Mon Sep 17 00:00:00 2001
+From: Filip Navara <filip.navara@gmail.com>
+Date: Thu, 3 Oct 2019 13:33:50 +0200
+Subject: [PATCH] Add bitmap flushing to gdip_bitmap_clone to fix possible
+ inconsistencies for drawing flipped images (#604)
+
+There were few usages of `gdip_bitmap_clone` with missing flush calls. Unfortunately there is zero code coverage for these paths. The chances of actually turning this into visible bug are thin. One would have to create an ARGB32 bitmap, draw into it and then try to paint it flipped into another bitmap. Adding the flush call down the stack is a safety precaution that should prevent any incorrect usage.
+---
+ src/bitmap.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/bitmap.c b/src/bitmap.c
+index 12485428..d52b15a8 100644
+--- a/src/bitmap.c
++++ b/src/bitmap.c
+@@ -639,6 +639,8 @@ gdip_bitmap_clone (GpBitmap *bitmap, GpBitmap **clonedbitmap)
+ 		return OutOfMemory;
+ 	}
+ 
++	gdip_bitmap_flush_surface (bitmap);
++
+ 	/* Copy simple types */
+ 	result->type = bitmap->type;
+ 	result->image_format = bitmap->image_format;

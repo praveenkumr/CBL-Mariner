@@ -1,0 +1,31 @@
+From 7b0ef20690e08f1fe124aebbf42f6310e2f40f81 Mon Sep 17 00:00:00 2001
+From: Leon Bottou <leon@bottou.org>
+Date: Thu, 27 Jun 2019 18:38:03 -0400
+Subject: [PATCH] Lizards!
+
+---
+ libdjvu/GString.cpp | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/libdjvu/GString.cpp b/libdjvu/GString.cpp
+index bf98bfe..b17ed2a 100644
+--- a/libdjvu/GString.cpp
++++ b/libdjvu/GString.cpp
+@@ -1216,11 +1216,11 @@ GP<GStringRep>
+ GStringRep::getbuf(int n) const
+ {
+   GP<GStringRep> retval;
+-  if(n< 0)
++  if(n < 0)
+     n=strlen(data);
+-  if(n>0)
++  if(n >= 0)
+   {
+-    retval=blank(n);
++    retval=blank((n>0) ? n : 1);
+     char *ndata=retval->data;
+     strncpy(ndata,data,n);
+     ndata[n]=0;
+-- 
+2.31.1
+

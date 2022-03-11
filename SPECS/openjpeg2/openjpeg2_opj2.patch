@@ -1,0 +1,12 @@
+diff -rupN --no-dereference openjpeg-2.4.0/src/bin/jp2/CMakeLists.txt openjpeg-2.4.0-new/src/bin/jp2/CMakeLists.txt
+--- openjpeg-2.4.0/src/bin/jp2/CMakeLists.txt	2020-12-28 21:59:39.000000000 +0100
++++ openjpeg-2.4.0-new/src/bin/jp2/CMakeLists.txt	2021-05-27 23:46:46.878130437 +0200
+@@ -44,6 +44,8 @@ endif()
+ # Loop over all executables:
+ foreach(exe opj_decompress opj_compress opj_dump)
+   add_executable(${exe} ${exe}.c ${common_SRCS})
++  string(REPLACE "opj_" "opj2_" exe2 ${exe})
++  set_target_properties(${exe} PROPERTIES OUTPUT_NAME ${exe2})
+   if(NOT ${CMAKE_VERSION} VERSION_LESS "2.8.12")
+     target_compile_options(${exe} PRIVATE ${OPENJP2_COMPILE_OPTIONS})
+   endif()

@@ -1,0 +1,36 @@
+diff --git a/libqpdf/QPDFWriter.cc b/libqpdf/QPDFWriter.cc
+index 1968214..0b9b59d 100644
+--- a/libqpdf/QPDFWriter.cc
++++ b/libqpdf/QPDFWriter.cc
+@@ -2096,7 +2096,6 @@ QPDFWriter::writeObjectStream(QPDFObjectHandle object)
+                 // This condition occurred in a fuzz input. Ideally we
+                 // should block it at at parse time, but it's not
+                 // clear to me how to construct a case for this.
+-                QTC::TC("qpdf", "QPDFWriter stream in ostream");
+                 obj_to_write.warnIfPossible(
+                     "stream found inside object stream; treating as null");
+                 obj_to_write = QPDFObjectHandle::newNull();
+diff --git a/qpdf/qpdf.testcov b/qpdf/qpdf.testcov
+index 9a15ae6..ce58c3c 100644
+--- a/qpdf/qpdf.testcov
++++ b/qpdf/qpdf.testcov
+@@ -442,7 +442,6 @@ QPDF xref skipped space 0
+ QPDF eof skipping spaces before xref 1
+ QPDF_encryption user matches owner V < 5 0
+ QPDF_encryption same password 1
+-QPDFWriter stream in ostream 0
+ QPDFObjectHandle duplicate dict key 0
+ QPDFWriter no encryption sig contents 0
+ QPDFPageObjectHelper colorspace lookup 0
+diff --git a/qpdf/qtest/qpdf.test b/qpdf/qtest/qpdf.test
+index 5a978d3..c9002ba 100644
+--- a/qpdf/qtest/qpdf.test
++++ b/qpdf/qtest/qpdf.test
+@@ -996,7 +996,6 @@ my @bug_tests = (
+     ["263", "empty xref stream", 2],
+     ["335a", "ozz-fuzz-12152", 2],
+     ["335b", "ozz-fuzz-14845", 2],
+-    ["fuzz-16214", "stream in object stream", 3, "--preserve-unreferenced"],
+     # When adding to this list, consider adding to SEED_CORPUS_FILES
+     # in fuzz/build.mk and updating the count in fuzz/qtest/fuzz.test.
+     );

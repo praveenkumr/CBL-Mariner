@@ -1,0 +1,95 @@
+diff -up stunnel-5.61/src/ctx.c.default-tls-version stunnel-5.61/src/ctx.c
+--- stunnel-5.61/src/ctx.c.default-tls-version	2021-12-13 09:43:22.000000000 +0100
++++ stunnel-5.61/src/ctx.c	2022-01-10 19:27:49.913243127 +0100
+@@ -149,18 +149,28 @@ int context_init(SERVICE_OPTIONS *sectio
+     section->ctx=SSL_CTX_new(section->option.client ?
+         TLS_client_method() : TLS_server_method());
+ #endif /* OPENSSL_VERSION_NUMBER>=0x30000000L */
+-    if(!SSL_CTX_set_min_proto_version(section->ctx,
+-            section->min_proto_version)) {
+-        s_log(LOG_ERR, "Failed to set the minimum protocol version 0x%X",
+-            section->min_proto_version);
+-        return 1; /* FAILED */
+-    }
+-    if(!SSL_CTX_set_max_proto_version(section->ctx,
+-            section->max_proto_version)) {
+-        s_log(LOG_ERR, "Failed to set the maximum protocol version 0x%X",
+-            section->max_proto_version);
+-        return 1; /* FAILED */
++    if (section->min_proto_version == USE_DEFAULT_TLS_VERSION) {
++        s_log(LOG_INFO, "Using the default TLS version as specified in "
++                "OpenSSL crypto policies. Not setting explicitly.");
++    } else {
++        if(!SSL_CTX_set_min_proto_version(section->ctx,
++                    section->min_proto_version)) {
++            s_log(LOG_ERR, "Failed to set the minimum protocol version 0x%X",
++                    section->min_proto_version);
++            return 1; /* FAILED */
++        }
+     }
++    if (section->max_proto_version == USE_DEFAULT_TLS_VERSION) {
++        s_log(LOG_INFO, "Using the default TLS version as specified in "
++                "OpenSSL crypto policies. Not setting explicitly");
++    } else {
++        if(!SSL_CTX_set_max_proto_version(section->ctx,
++                    section->max_proto_version)) {
++            s_log(LOG_ERR, "Failed to set the maximum protocol version 0x%X",
++                    section->max_proto_version);
++            return 1; /* FAILED */
++        }
++	}
+ #else /* OPENSSL_VERSION_NUMBER<0x10100000L */
+     if(section->option.client)
+         section->ctx=SSL_CTX_new(section->client_method);
+diff -up stunnel-5.61/src/options.c.default-tls-version stunnel-5.61/src/options.c
+--- stunnel-5.61/src/options.c.default-tls-version	2022-01-10 19:23:15.096254067 +0100
++++ stunnel-5.61/src/options.c	2022-01-10 19:23:15.098254103 +0100
+@@ -3297,8 +3297,9 @@ NOEXPORT char *parse_service_option(CMD
+             return "Invalid protocol version";
+         return NULL; /* OK */
+     case CMD_INITIALIZE:
+-        if(section->max_proto_version && section->min_proto_version &&
+-                section->max_proto_version<section->min_proto_version)
++        if(section->max_proto_version != USE_DEFAULT_TLS_VERSION
++                && section->min_proto_version != USE_DEFAULT_TLS_VERSION
++                && section->max_proto_version<section->min_proto_version)
+             return "Invalid protocol version range";
+         break;
+     case CMD_PRINT_DEFAULTS:
+@@ -3316,7 +3317,10 @@ NOEXPORT char *parse_service_option(CMD
+     /* sslVersionMax */
+     switch(cmd) {
+     case CMD_SET_DEFAULTS:
+-        section->max_proto_version=0; /* highest supported */
++        section->max_proto_version=USE_DEFAULT_TLS_VERSION; /* use defaults in
++                                                               OpenSSL crypto
++                                                               policies.Do not
++                                                               override it */
+         break;
+     case CMD_SET_COPY:
+         section->max_proto_version=new_service_options.max_proto_version;
+@@ -3347,7 +3351,10 @@ NOEXPORT char *parse_service_option(CMD
+     /* sslVersionMin */
+     switch(cmd) {
+     case CMD_SET_DEFAULTS:
+-        section->min_proto_version=TLS1_VERSION;
++        section->min_proto_version=USE_DEFAULT_TLS_VERSION; /* use defaults in
++                                                               OpenSSL crypto
++                                                               policies. Do not
++                                                               override it */
+         break;
+     case CMD_SET_COPY:
+         section->min_proto_version=new_service_options.min_proto_version;
+diff -up stunnel-5.61/src/prototypes.h.default-tls-version stunnel-5.61/src/prototypes.h
+--- stunnel-5.61/src/prototypes.h.default-tls-version	2021-12-13 09:43:22.000000000 +0100
++++ stunnel-5.61/src/prototypes.h	2022-01-10 19:23:15.099254121 +0100
+@@ -932,6 +932,9 @@ ICON_IMAGE load_icon_default(ICON_TYPE);
+ ICON_IMAGE load_icon_file(const char *);
+ #endif
+ 
++#define USE_DEFAULT_TLS_VERSION ((int)-2) /* Use defaults in OpenSSL
++                                             crypto policies */
++
+ #endif /* defined PROTOTYPES_H */
+ 
+ /* end of prototypes.h */

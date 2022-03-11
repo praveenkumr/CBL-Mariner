@@ -1,0 +1,19 @@
+{
+ "Signatures": {
+  "Exim-Maintainers-Keyring.asc": "cbc7f2d6e51e3e90ac01f8992634cc22e0b51843b352ebd4fdcb127a7d8e8c9c",
+  "clamd.exim.service": "cacd8b820395f1b2c9dec3a05edbd4c2f1dab3bf7ff2dba839cb6840667447f6",
+  "exim-4.94.2.tar.xz": "051861fc89f06205162f12129fb7ebfe473383bb6194bf8642952bfd50329274",
+  "exim-4.94.2.tar.xz.asc": "5546fb401d778bc8c8df35d9584612d10a4a896cde5f130c119f98297a18df73",
+  "exim-clamav-tmpfiles.conf": "43d07aa94484b9af4f5a7f4c9965e6de12049e6f92c139a68b4f1118bdfae230",
+  "exim-gen-cert": "31bbd2481f1f7769abf1dae6a11e7805e107ea423bde91197c367200ba12cb3d",
+  "exim-greylist.conf.inc": "3303a053b1131e963f53cf718e661f118533dc2ab9f8e5c62d55b593d391486f",
+  "exim-tidydb.sh": "9b920575b9379330719e90c66cb201cc7e114e860197dad8209a0ffa53527673",
+  "exim.logrotate": "5986af1c2d01ef54a27409783e24fc861609ad78108fd4b7747ad7cc78a6fd3d",
+  "exim.pam": "7b2ccad84e5f2b337985c983b6085e17c47643abaa0b7033c36145864f123a62",
+  "exim.service": "0f36b8cfd8d379b16e5336186a5a7d4c003c9345699e973f2afe2f7b31d703a1",
+  "exim.sysconfig": "461cbb9348ee48c87c887cbf0f30b1640a0697e374eb8213dc3b108c38079a63",
+  "greylist-tidy.sh": "3d0edfb3a811fddc95f661270371ee1453e6fde73738205a82d9ebf042be5caa",
+  "mk-greylist-db.sql": "fe992b118359fa7a23f50fdf903c5152ed46184d4b6d2c958360f266ea0ef5f6",
+  "trusted-configs": "f6490c95bdb30d5797ad592dc4ee81b8a67cfd8cd17abe35a3dfc583e209c05c"
+ }
+}

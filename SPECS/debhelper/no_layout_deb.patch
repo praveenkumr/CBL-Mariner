@@ -1,0 +1,12 @@
+Fedora setuptools don't have option --install-layout=deb
+--- ./lib/Debian/Debhelper/Buildsystem/python_distutils.pm.orig	2017-12-02 08:46:03.000000000 +0000
++++ ./lib/Debian/Debhelper/Buildsystem/python_distutils.pm	2018-01-07 23:43:53.492047778 +0000
+@@ -166,7 +166,7 @@ sub setup_py {
+ 			         and $python_default =~ /^python2\.[2345]$/)
+ 			      or $python =~ /^python2\.[2345](?:-dbg)?$/ )) {
+ 				$this->doit_in_sourcedir($python, "setup.py",
+-						$act, @_, "--install-layout=deb");
++						$act, @_);
+ 			}
+ 			else {
+ 				$this->doit_in_sourcedir($python, "setup.py",
