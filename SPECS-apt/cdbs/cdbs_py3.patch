@@ -1,0 +1,33 @@
+diff -rupN --no-dereference cdbs-0.4.163/scripts/waf-unpack cdbs-0.4.163-new/scripts/waf-unpack
+--- cdbs-0.4.163/scripts/waf-unpack	2016-06-10 12:36:01.000000000 +0200
++++ cdbs-0.4.163-new/scripts/waf-unpack	2020-12-27 13:54:16.105940058 +0100
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python
++#!/usr/bin/python3
+ # -*- mode: python; coding: utf-8 -*-
+ #
+ # Most of this code was stolen from Waf which is:
+@@ -19,6 +19,8 @@
+ # You should have received a copy of the GNU General Public License
+ # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
++from __future__ import print_function
++
+ usage = '''
+ 
+   python waf-unpack --waf=WAF_FILE --dest=DEST_FOLDER
+@@ -115,11 +117,11 @@ if __name__ == '__main__':
+ 	(options, args) = parser.parse_args()
+ 
+ 	if not options.waf and not options.dest:
+-		print '--waf and --dest options are mandatory'
++		print('--waf and --dest options are mandatory')
+ 		parser.print_help()
+ 		sys.exit(1) 
+ 
+-	print 'Unpacking ' + options.waf + ' to ' + options.dest + ' ...'
++	print('Unpacking ' + options.waf + ' to ' + options.dest + ' ...')
+ 	unpack_waf(options.waf, options.dest)
+-	print 'Done'
++	print('Done')
+ 
