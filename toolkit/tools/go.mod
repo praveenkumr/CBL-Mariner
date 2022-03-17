@@ -3,10 +3,13 @@ module microsoft.com/pkggen
 go 1.13
 
 require (
+	github.com/DavidGamba/go-getoptions v0.25.3
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/bendahl/uinput v1.4.0
 	github.com/cavaliercoder/go-cpio v0.0.0-20180626203310-925f9528c45e
+	github.com/cavaliergopher/cpio v1.0.1
+	github.com/cavaliergopher/rpm v1.2.0
 	github.com/gdamore/tcell v1.3.0
 	github.com/jinzhu/copier v0.3.2
 	github.com/juliangruber/go-intersect v1.1.0
@@ -18,7 +21,8 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.4.0
 	github.com/ulikunitz/xz v0.5.7
-	golang.org/x/sys v0.0.0-20200509044756-6aff5f38e54f
+	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
+	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
 	gonum.org/v1/gonum v0.6.2
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect

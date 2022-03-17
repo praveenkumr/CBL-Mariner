@@ -6,7 +6,9 @@
         "cronie-anacron",
         "logrotate",
         "core-packages-base-image",
-        "initramfs"
+        "initramfs",
+	"dpkg",
+	"apt"
     ],
     "_comment": "Install 'initramfs' last to avoid unnecessary regeneration when other packages, such as 'kernel', are installed."
 }

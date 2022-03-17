@@ -366,8 +366,11 @@ func PackageNamesFromConfig(config configuration.Config) (packageList []*pkgjson
 // - encryptedRoot stores information about the encrypted root device if root encryption is enabled
 // - diffDiskBuild is a flag that denotes whether this is a diffdisk build or not
 // - hidepidEnabled is a flag that denotes whether /proc will be mounted with the hidepid option
-func PopulateInstallRoot(installChroot *safechroot.Chroot, packagesToInstall []string, config configuration.SystemConfig, installMap, mountPointToFsTypeMap, mountPointToMountArgsMap map[string]string, isRootFS bool, encryptedRoot diskutils.EncryptedRootDevice, diffDiskBuild, hidepidEnabled bool) (err error) {
+func PopulateInstallRoot(installChroot *safechroot.Chroot, packagesToInstall []string, config configuration.SystemConfig, installMap, mountPointToFsTypeMap, mountPointToMountArgsMap map[string]string, isRootFS bool, encryptedRoot diskutils.EncryptedRootDevice, diffDiskBuild, hidepidEnabled bool, debian bool) (err error) {
 	const (
+		dpkgPkg = "dpkg"
+		xxhash = "xxhash"
+		aptPkg = "apt"
 		filesystemPkg = "filesystem"
 	)
 
@@ -398,17 +401,34 @@ func PopulateInstallRoot(installChroot *safechroot.Chroot, packagesToInstall []s
 	}
 
 	// Calculate how many packages need to be installed so an accurate percent complete can be reported
-	totalPackages, err := calculateTotalPackages(packagesToInstall, installRoot)
+	totalPackages, err, allPackagesName := calculateTotalPackages(packagesToInstall, installRoot)
 	if err != nil {
 		return
 	}
 
-	// Keep a running total of how many packages have been installed through all the `TdnfInstallWithProgress` invocations
+	// Keep a running total of how many packages have been installed through all the `PkgInstallWithProgress` invocations
 	packagesInstalled := 0
 
+	if debian {
+		// Install dpkg pkg first
+		packagesInstalled, err = PkgInstallWithProgress(dpkgPkg, installRoot, packagesInstalled, totalPackages, true, false)
+		if err != nil {
+			logger.Log.Warnf("Failed to install dpkg %v\n", err)
+			return
+		} else {
+			logger.Log.Warn("Success install dpkg")
+		}
+
+		err = initializeDpkgDatabase(installRoot)
+		if err != nil {
+			logger.Log.Debug("Issue Creating DPKG database.")
+		}
+		// TODO Install apt and xxhash
+	}
 	// Install filesystem package first
-	packagesInstalled, err = TdnfInstallWithProgress(filesystemPkg, installRoot, packagesInstalled, totalPackages, true)
+	packagesInstalled, err = PkgInstallWithProgress(filesystemPkg, installRoot, packagesInstalled, totalPackages, true, debian)
 	if err != nil {
+		logger.Log.Warnf("Failed to install filesystem %v\n", err)
 		return
 	}
 
@@ -423,10 +443,37 @@ func PopulateInstallRoot(installChroot *safechroot.Chroot, packagesToInstall []s
 
 	// Install packages one-by-one to avoid exhausting memory
 	// on low resource systems
-	for _, pkg := range packagesToInstall {
-		packagesInstalled, err = TdnfInstallWithProgress(pkg, installRoot, packagesInstalled, totalPackages, true)
+	if debian {
+		for pkg, install := range allPackagesName {
+			if !install {
+				continue
+			}
+			packagesInstalled, err = PkgInstallWithProgress(pkg, installRoot, packagesInstalled, totalPackages, true, debian)
+			if err != nil {
+				logger.Log.Debugf("failed to install debian pkg %v", pkg)
+			} else {
+				logger.Log.Debugf("successfully installed pkg %v", pkg)
+			}
+		}
+	} else {
+		for _, pkg := range packagesToInstall {
+			packagesInstalled, err = PkgInstallWithProgress(pkg, installRoot, packagesInstalled, totalPackages, true, debian)
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	if debian {
+		var (
+			stdout string
+			stderr string
+		)
+		stdout, stderr, err = shell.Execute("ldconfig", "-r", installRoot)
 		if err != nil {
-			return
+			logger.Log.Warnf("Failed to perform ldconfig : %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
 		}
 	}
 
@@ -494,14 +541,31 @@ func initializeRpmDatabase(installRoot string, diffDiskBuild bool) (err error) {
 	return
 }
 
-// TdnfInstall installs a package into the current environment without calculating progress
-func TdnfInstall(packageName, installRoot string) (packagesInstalled int, err error) {
-	packagesInstalled, err = TdnfInstallWithProgress(packageName, installRoot, 0, 0, false)
+func initializeDpkgDatabase(installRoot string) (err error) {
+	var (
+		stdout string
+		stderr string
+	)
+	path := installRoot + "/var/lib/dpkg/status"
+	// way to init the db "touch /var/lib/dpkg/status"
+	stdout, stderr, err = shell.Execute("touch", path)
+	if err != nil {
+		logger.Log.Warnf("Failed to create dpkg database: %v", err)
+		logger.Log.Warn(stdout)
+		logger.Log.Warn(stderr)
+		return err
+	}
 	return
 }
 
-// TdnfInstallWithProgress installs a package in the current environment while optionally reporting progress
-func TdnfInstallWithProgress(packageName, installRoot string, currentPackagesInstalled, totalPackages int, reportProgress bool) (packagesInstalled int, err error) {
+// PkgInstall installs a package into the current environment without calculating progress
+func PkgInstall(packageName, installRoot string, debian bool) (packagesInstalled int, err error) {
+	packagesInstalled, err = PkgInstallWithProgress(packageName, installRoot, 0, 0, false, debian)
+	return
+}
+
+// PkgInstallWithProgress installs a package in the current environment while optionally reporting progress
+func PkgInstallWithProgress(packageName, installRoot string, currentPackagesInstalled, totalPackages int, reportProgress bool, debian bool) (packagesInstalled int, err error) {
 	packagesInstalled = currentPackagesInstalled
 
 	onStdout := func(args ...interface{}) {
@@ -535,9 +599,34 @@ func TdnfInstallWithProgress(packageName, installRoot string, currentPackagesIns
 		}
 	}
 
-	err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "tdnf", "-v", "install", packageName, "--installroot", installRoot, "--nogpgcheck", "--assumeyes")
-	if err != nil {
-		logger.Log.Warnf("Failed to tdnf install: %v. Package name: %v", err, packageName)
+	if debian {
+		mpackageName := "/debian/DEBS/" + packageName + "_*"
+		err = filepath.Walk("/debian", func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+			match, _ := filepath.Match(mpackageName, path)
+			if match {
+				logger.Log.Debugf("dir: %v: name: %s\n", info.IsDir(), path)
+				//ignorepkg := "--ignore-depends=debhelper,rpm,dpkg-dev,make,cpio,rpm2cpio"
+				//err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "dpkg", ignorepkg, "--force-overwrite", "--root", installRoot, "--install", path)
+				err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "dpkg", "--force-depends", "--force-overwrite", "--root", installRoot, "--install", path)
+				//err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "dpkg-deb", "-x", path, installRoot)
+				if err != nil {
+					logger.Log.Warnf("Failed to dpkg install: %v. Package name: %v", err, packageName)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			logger.Log.Warnf("Error retrieving %v", err)
+		}
+	} else {
+		err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "tdnf", "-v", "install", packageName, "--installroot", installRoot, "--nogpgcheck", "--assumeyes")
+		if err != nil {
+			logger.Log.Warnf("Failed to tdnf install: %v. Package name: %v", err, packageName)
+		}
 	}
 
 	return
@@ -613,7 +702,7 @@ func configureSystemFiles(installChroot *safechroot.Chroot, hostname string, con
 	return
 }
 
-func calculateTotalPackages(packages []string, installRoot string) (totalPackages int, err error) {
+func calculateTotalPackages(packages []string, installRoot string) (totalPackages int, err error, allPkgsName map[string]bool) {
 	allPackageNames := make(map[string]bool)
 	const tdnfAssumeNoStdErr = "Error(1032) : Operation aborted.\n"
 
@@ -671,7 +760,7 @@ func calculateTotalPackages(packages []string, installRoot string) (totalPackage
 			allPackageNames[pkgSplit[packageNameIndex]] = true
 		}
 	}
-
+	allPkgsName = allPackageNames
 	totalPackages = len(allPackageNames)
 	logger.Log.Debugf("All packages to be installed (%d): %v", totalPackages, allPackageNames)
 	return
