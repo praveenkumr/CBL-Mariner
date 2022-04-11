@@ -15,6 +15,7 @@ import (
 	"github.com/cavaliercoder/go-cpio"
 	"github.com/klauspost/pgzip"
 	"microsoft.com/pkggen/imagegen/configuration"
+//	"microsoft.com/pkggen/imagegen/installutils"
 	"microsoft.com/pkggen/internal/file"
 	"microsoft.com/pkggen/internal/jsonutils"
 	"microsoft.com/pkggen/internal/logger"
@@ -42,12 +43,13 @@ type IsoMaker struct {
 	releaseVersion     string               // Current Mariner release version.
 	resourcesDirPath   string               // Path to the 'resources' directory.
 	imageNameTag       string               // Optional user-supplied tag appended to the generated ISO's name.
+	debian		   bool
 
 	isoMakerCleanUpTasks []func() // List of clean-up tasks to perform at the end of the ISO generation process.
 }
 
 // NewIsoMaker returns a new ISO maker.
-func NewIsoMaker(unattendedInstall bool, baseDirPath, buildDirPath, releaseVersion, resourcesDirPath, configFilePath, initrdPath, isoRepoDirPath, outputDir, imageNameTag string) *IsoMaker {
+func NewIsoMaker(unattendedInstall bool, baseDirPath, buildDirPath, releaseVersion, resourcesDirPath, configFilePath, initrdPath, isoRepoDirPath, outputDir, imageNameTag string, debian bool) *IsoMaker {
 	if baseDirPath == "" {
 		baseDirPath = filepath.Dir(configFilePath)
 	}
@@ -66,6 +68,7 @@ func NewIsoMaker(unattendedInstall bool, baseDirPath, buildDirPath, releaseVersi
 		fetchedRepoDirPath: isoRepoDirPath,
 		outputDirPath:      outputDir,
 		imageNameTag:       imageNameTag,
+		debian:		    debian,
 	}
 }
 
@@ -79,7 +82,11 @@ func (im *IsoMaker) Make() {
 
 	im.prepareWorkDirectory()
 
-	im.createIsoRpmsRepo()
+	if !im.debian {
+		im.createIsoRpmsRepo()
+	} else {
+		im.createIsoDebsRepo()
+	}
 
 	im.prepareIsoBootLoaderFilesAndFolders()
 
@@ -244,6 +251,67 @@ func (im *IsoMaker) createIsoRpmsRepo() {
 	fetchedRepoDirContentsPath := filepath.Join(im.fetchedRepoDirPath, "*")
 	recursiveCopyDereferencingLinks(fetchedRepoDirContentsPath, isoRpmsRepoDirPath)
 }
+
+func (im *IsoMaker) createIsoDebsRepo() {
+	isoDebsRepoDirPath := filepath.Join(im.buildDirPath, "/debian")
+
+	logger.Log.Debugf("Creating ISO DEBs repo under '%s'.", isoDebsRepoDirPath)
+
+	logger.PanicOnError(os.MkdirAll(isoDebsRepoDirPath, os.ModePerm), "Failed to mkdir '%s'.", isoDebsRepoDirPath)
+/*
+	// Calculate how many packages need to be installed so an accurate percent complete can be reported
+	packages := []string {hyperv-daemons, shim, grub2-efi-binary, ca-certificates, cronie-anacron, logrotate, core-packages-base-image, libseccomp, dpkg, apt, initramfs}
+	totalPackages, err, allPkgsName := installutils.CalculateTotalPackages(packages, "/", true)
+	if err != nil {
+		logger.Log.Errorf("Calculate packages failed %v'.", err)
+		return
+	}
+	// Copy the content and create the repo
+	for _, packageName := range allPkgsName {
+		mpackageName := "/debian/DEBS/" + packageName +  "_*"
+		err = filepath.Walk("/debian", func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+			match, _ := filepath.Match(mpackageName, path)
+			if match {
+				logger.Log.Debugf("dir: %v: name: %s\n", info.IsDir(), path)
+				err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "cp", path, isoDebsRepoDirPath)
+				if err != nil {
+					logger.Log.Warnf("Failed to copy %v. Package name: %v", err, packageName)
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			logger.Log.Warnf("Error retrieving %v", err)
+		}
+	}
+	var (
+		stdout string
+		stderr string
+	)
+	stdout, stderr, err = shell.Execute()
+	if err != nil {
+		// tdnf aborts the process when it detects an install with --assumeno.
+		if stderr == tdnfAssumeNoStdErr {
+			err = nil
+		} else {
+			logger.Log.Error(stderr)
+			return
+		}
+	}
+*/
+	fetchedRepoDirContentsPath := filepath.Join(im.fetchedRepoDirPath, "*")
+	recursiveCopyDereferencingLinks(fetchedRepoDirContentsPath, isoDebsRepoDirPath)
+}
+
+
+
+// prepareWorkDirectory makes sure we start with a clean directory
+
 
 // prepareWorkDirectory makes sure we start with a clean directory
 // under "im.buildDirPath". The work directory will contain the contents of the ISO image.

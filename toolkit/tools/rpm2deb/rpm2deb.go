@@ -29,8 +29,6 @@ import(
 	"microsoft.com/pkggen/rpm2deb/debparser"
 )
 
-const version string = "0.1"
-
 func validateInputFile(fpath string) error {
 	logger.Println("Checking file", fpath)
 	_, err := os.Stat(fpath)
@@ -98,23 +96,33 @@ func getPackageName(s []string) (int, string) {
 	return ret, output
 }
 
+/* https://www.debian.org/doc/debian-policy/ch-controlfields.html */
 func createControlFile(pkgName string, pkg debparser.Package) (int64, error) {
-	content := "Source: rtd\n"
+	content := "Source: " + pkg.Name + "\n"
 	content += "Section: admin\n"
 	content += "Priority: optional\n"
 	content += "Build-Depends: debhelper (>= 7.0.50)\n"
-	content += "Maintainer: Praveen Kumar <kumarpraveen@microsoft.com>\n"
-	content += "Standards-Version: 1.0.0\n"
+	content += "Maintainer: " + pkg.Vendor + "\n"
+	content += "Standards-Version: " + pkg.Version + "\n"
+	content += "Version: " + pkg.Release + "\n"
 	content += "#Vcs-Git:\n"
 	content += "#Homepage:\n"
 	content += "\n"		/* New line is required for Next Stanza */
-	_, pkgname := getPackageName(strings.Split(pkgName, "-"))
-	content += "Package: " + strings.ToLower(pkgname) +"\n"
+	content += "Package: " + pkg.Name + "\n"
+	// TODO Looks like it supports only all and we need to check the arch during building debian/rules https://www.debian.org/doc/debian-policy/ch-source.html#s-debianrules
 	content += "Architecture: all\n"
 //	content += "Depends: debhelper (>= 7), ${misc:Depends}, ${go:Depends}, rpm (>= 2.4.4-2), dpkg-dev, make, cpio, rpm2cpio\n"
 	content += "Depends: " +  strings.Join(pkg.Depends, ", ") + "\n"
-	content += "Suggests: patch, bzip2, lsb-rpm, lintian, lzma\n"
-	content += "Description: Converts Mariner's RPM package to Debian package. This tool only works upon existing binaries and there is NO build performed\n"
+	content += "Provides: " + strings.Join(pkg.Provides, ", ") + "\n"
+//	content += "Suggests: patch, bzip2, lsb-rpm, lintian, lzma\n"
+	// TODO description should support extended desciption
+	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-description
+	// Error if desciption starts with "\n" this will be empty
+	desc := strings.Split(pkg.Description, "\n")[0]
+	if len(strings.TrimSpace(desc)) == 0 {
+		desc = "Dummy"
+	}
+	content += "Description: " + desc +"\n"
 
 	return doCreateAndDoWriteIO("control", 0644, strings.NewReader(content), pkgName)
 }
@@ -124,18 +132,42 @@ func createCompatFile(pkg string) (int64, error) {
 	return doCreateAndDoWriteIO("compat", 0644, strings.NewReader(content), pkg)
 }
 
-func createChangelogFile(pkg string) (int64, error) {
-	content := "rtd ("+ version + ") experimental; urgency=low\n\n"
+func createChangelogFile(pkgName string, pkg debparser.Package) (int64, error) {
+	// TODO research on layout and "experimental; urgency=low" & clean up this from already present changelog
+	content := pkg.Name + " (" + pkg.Version + "-" + pkg.Release + ") experimental; urgency=low\n\n"
 	content += "  * Initial Release.\n\n"
 	content += "  -- Praveen Kumar <kumarpraveen@microsoft.com>  Thu, 22 Nov 2021 13:21:48 -0800\n"
 
-	return doCreateAndDoWriteIO("changelog", 0644, strings.NewReader(content), pkg)
+	return doCreateAndDoWriteIO("changelog", 0644, strings.NewReader(content), pkgName)
+	//return doCreateAndDoWriteIO("changelog", 0644, strings.NewReader(pkg.Changelog), pkgName)
+}
+
+
+func createPostInstFill(pkgName string, pkg debparser.Package) (int64, error) {
+	// No need to create the file
+	if len(pkg.PostIn) == 0 || pkg.PostInProg == "lua" || pkg.Name == "shadow-utils" || pkg.Name == "vim" || pkg.Name == "alsa-utils" || pkg.Name == "qt5-qtbase" {		// issue with lua
+		return 0, nil
+	}
+	logger.Println(pkg.PostIn)
+
+	var content string
+
+	if (pkg.PostInProg == "lua") {
+		content =  "#!/usr/bin/" + pkg.PostInProg
+	} else {
+		content ="#!" + pkg.PostInProg
+	}
+	content += "\n\n"
+	for _, txt := range pkg.PostIn {
+		content += txt +"\n"
+	}
+	return doCreateAndDoWriteIO("postinst", 0755, strings.NewReader(content), pkgName)
 }
 
 func createReleaseFile(pkg string, repoName string) (int64, error) {
 	content := "Archive: stable\n"
 	content += "Component: main\n"
-	content += "Origin: Micorosft\n"
+	content += "Origin: Microsoft Corporation\n"
 	content += "Label:" + repoName + "\n"
 	content += "Architecture: all"
 
@@ -153,7 +185,7 @@ func createDebPkgMandatoryFiles(pkgName string, pkg debparser.Package) error {
 		return err
 	}
 
-	_, err = createChangelogFile(pkgName)
+	_, err = createChangelogFile(pkgName, pkg)
 	if err != nil {
 		return err
 	}
@@ -162,6 +194,16 @@ func createDebPkgMandatoryFiles(pkgName string, pkg debparser.Package) error {
 	if err != nil {
 		return err
 	}
+
+	_, err = createPostInstFill(pkgName, pkg)
+	if err != nil {
+		return err
+	}
+
+	/* 
+	   TODO for control information files preinst, postinst, prerm and postrm
+	   https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+	 */
 	return nil
 }
 
@@ -448,17 +490,18 @@ func generateDebPackage() error {
 	return nil
 }
 
-func renameDebPackageName(pkg string, toLocation string) error {
-	tokens := strings.Split(pkg, "-")
-	idx, pkgName := getPackageName(strings.Split(pkg, "-"))
-	newVersion := strings.Join(tokens[idx:], "-")
+func renameDebPackageName(pkgName string, toLocation string, pkg debparser.Package) error {
+//	tokens := strings.Split(pkg, "-")
+//	idx, pkgName := getPackageName(strings.Split(pkg, "-"))
+//	newVersion := strings.Join(tokens[idx:], "-")
+	newVersion := pkgName[len(pkg.Name)+1:] // +1 is for first '-'
 
-	oldName := "../"+strings.ToLower(pkgName) + "_" + version + "_all.deb"
+	oldName := "../"+ pkg.Name + "_" + pkg.Version + "-" + pkg.Release + "_all.deb"
 	var newName string
 	if toLocation == "" {
-		newName = "../"+ pkgName + "_" + newVersion + ".deb"
+		newName = "../"+ pkg.Name + "_" + newVersion + ".deb"
 	} else {
-		newName = toLocation + "/" + pkgName + "_" + newVersion + ".deb"
+		newName = toLocation + "/" + pkg.Name + "_" + newVersion + ".deb"
 	}
 	logger.Printf("oldName : %v\n", oldName)
 	logger.Printf("newName : %v\n", newName)
@@ -613,7 +656,7 @@ func convertSingleRPMFromURL(url string, toLocation string) error {
 		goto clean
 	}
 
-	renameDebPackageName(pkgName, toLocation)
+	renameDebPackageName(pkgName, toLocation, pkg)
 clean:
 	cleanUp(fdir, pkgName)
 
@@ -659,7 +702,7 @@ func convertSingleRPM(fpath string, toLocation string) error {
 		goto clean
 	}
 
-	renameDebPackageName(pkgName, toLocation)
+	renameDebPackageName(pkgName, toLocation, pkg)
 clean:
 	cleanUp(fdir, pkgName)
 

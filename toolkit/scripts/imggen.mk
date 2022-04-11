@@ -29,6 +29,7 @@ imggen_config_dir                    = $(IMAGEGEN_DIR)/$(config_name)
 workspace_dir                        = $(imggen_config_dir)/workspace
 local_and_external_rpm_cache         = $(imggen_config_dir)/package_repo
 local_and_external_deb_cache         = /work/REPO
+iso_local_and_external_deb_cache     = /work/ISO-REPO
 external_rpm_cache                   = $(imggen_config_dir)/external_package_repo
 image_fetcher_tmp_dir                = $(imggen_config_dir)/fetcher_tmp
 image_roaster_tmp_dir                = $(imggen_config_dir)/roaster_tmp
@@ -185,12 +186,13 @@ iso: $(go-isomaker) $(go-liveinstaller) $(go-imager) $(depend_CONFIG_FILE) $(CON
 		--input $(CONFIG_FILE) \
 		--release-version $(RELEASE_VERSION) \
 		--resources $(RESOURCES_DIR) \
-		--iso-repo $(local_and_external_rpm_cache) \
+		--iso-repo $(iso_local_and_external_deb_cache) \
 		--log-level=$(LOG_LEVEL) \
 		--log-file=$(LOGS_DIR)/imggen/isomaker.log \
 		$(if $(UNATTENDED_INSTALLER),--unattended-install) \
 		--output-dir $(artifact_dir) \
-		--image-tag=$(IMAGE_TAG)
+		--image-tag=$(IMAGE_TAG) \
+		--debian
 meta-user-data: $(meta_user_data_files)
 	cp -t $(meta_user_data_tmp_dir) $(meta_user_data_files)
 	if [ -n "$(SSH_KEY_FILE)" ]; then \

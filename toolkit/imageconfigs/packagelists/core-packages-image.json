@@ -6,9 +6,13 @@
         "cronie-anacron",
         "logrotate",
         "core-packages-base-image",
-        "initramfs",
+	"libseccomp",
+	"diffutils",
 	"dpkg",
-	"apt"
+	"xxhash",
+	"xxhash-libs",
+	"apt",
+        "initramfs"
     ],
     "_comment": "Install 'initramfs' last to avoid unnecessary regeneration when other packages, such as 'kernel', are installed."
 }

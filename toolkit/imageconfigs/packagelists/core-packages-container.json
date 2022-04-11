@@ -1,7 +1,12 @@
 {
     "packages": [
         "core-packages-container",
+	"perl",
+	"libseccomp",
+	"diffutils",
 	"dpkg",
+	"xxhash",
+	"xxhash-libs",
 	"apt"
     ]
 }

@@ -14,6 +14,7 @@ import (
 var (
 	app               = kingpin.New("isomaker", "Tool to generate ISO images.")
 	unattendedInstall = app.Flag("unattended-install", "Set this flag, if the ISO should install the default system configuration without user's interaction.").Bool()
+	debian		  = app.Flag("debian", "Set this flag, if the ISO should install debian pkg manager.").Bool()
 	baseDirPath       = app.Flag("base-dir", "Base directory for relative file paths from the config. Defaults to config's directory.").ExistingDir()
 	buildDirPath      = app.Flag("build-dir", "Directory to store temporary files while building.").Required().String()
 	configFilePath    = exe.InputFlag(app, "Path to the image config file.")
@@ -45,6 +46,7 @@ func main() {
 		*initrdPath,
 		*isoRepoDirPath,
 		*outputDir,
-		*imageTag)
+		*imageTag,
+		*debian)
 	isoMaker.Make()
 }

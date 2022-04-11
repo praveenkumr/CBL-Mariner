@@ -25,6 +25,7 @@ import (
 	"microsoft.com/pkggen/internal/retry"
 	"microsoft.com/pkggen/internal/safechroot"
 	"microsoft.com/pkggen/internal/shell"
+	"microsoft.com/pkggen/rpm2deb/debparser"
 )
 
 const (
@@ -368,6 +369,7 @@ func PackageNamesFromConfig(config configuration.Config) (packageList []*pkgjson
 // - hidepidEnabled is a flag that denotes whether /proc will be mounted with the hidepid option
 func PopulateInstallRoot(installChroot *safechroot.Chroot, packagesToInstall []string, config configuration.SystemConfig, installMap, mountPointToFsTypeMap, mountPointToMountArgsMap map[string]string, isRootFS bool, encryptedRoot diskutils.EncryptedRootDevice, diffDiskBuild, hidepidEnabled bool, debian bool) (err error) {
 	const (
+		diffutilsPkg = "diffutils"
 		dpkgPkg = "dpkg"
 		xxhash = "xxhash"
 		aptPkg = "apt"
@@ -376,32 +378,59 @@ func PopulateInstallRoot(installChroot *safechroot.Chroot, packagesToInstall []s
 
 	defer stopGPGAgent(installChroot)
 
+	if debian {
+		var (
+			stdout string
+			stderr string
+		)
+		stdout, stderr, err = shell.Execute("adduser", "_apt", "--badname")
+		if err != nil {
+			logger.Log.Warnf("Error adding user _apt: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+		stdout, stderr, err = shell.Execute("ldconfig")
+		if err != nil {
+			logger.Log.Warnf("Failed to perform ldconfig : %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+		stdout, stderr, err = shell.Execute("apt", "update")
+		if err != nil {
+			logger.Log.Warnf("Failed to perform apt update: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+	}
+
 	ReportAction("Initializing RPM Database")
 
 	installRoot := filepath.Join(rootMountPoint, installChroot.RootDir())
 
-	// Initialize RPM Database so we can install RPMs into the installroot
-	err = initializeRpmDatabase(installRoot, diffDiskBuild)
-	if err != nil {
-		return
-	}
+//	if !debian {
+		// Initialize RPM Database so we can install RPMs into the installroot
+		err = initializeRpmDatabase(installRoot, diffDiskBuild)
+		if err != nil {
+			return
+		}
 
-	if !config.RemoveRpmDb {
-		// User wants to avoid removing the RPM database.
-		logger.Log.Debug("RemoveRpmDb is not turned on. Skipping RPM database cleanup.")
-	} else {
-		defer func() {
-			// Signal an error if cleanup fails; don't overwrite the previous error though.
-			// Failure to clean up the RPM database constitutes a build break.
-			cleanupErr := cleanupRpmDatabase(installRoot)
-			if err == nil {
-				err = cleanupErr
-			}
-		}()
-	}
+		if !config.RemoveRpmDb {
+			// User wants to avoid removing the RPM database.
+			logger.Log.Debug("RemoveRpmDb is not turned on. Skipping RPM database cleanup.")
+		} else {
+			defer func() {
+				// Signal an error if cleanup fails; don't overwrite the previous error though.
+				// Failure to clean up the RPM database constitutes a build break.
+				cleanupErr := cleanupRpmDatabase(installRoot)
+				if err == nil {
+					err = cleanupErr
+				}
+			}()
+		}
+//	}
 
 	// Calculate how many packages need to be installed so an accurate percent complete can be reported
-	totalPackages, err, allPackagesName := calculateTotalPackages(packagesToInstall, installRoot)
+	totalPackages, err, allPkgsName := CalculateTotalPackages(packagesToInstall, installRoot, debian)
 	if err != nil {
 		return
 	}
@@ -410,20 +439,12 @@ func PopulateInstallRoot(installChroot *safechroot.Chroot, packagesToInstall []s
 	packagesInstalled := 0
 
 	if debian {
-		// Install dpkg pkg first
-		packagesInstalled, err = PkgInstallWithProgress(dpkgPkg, installRoot, packagesInstalled, totalPackages, true, false)
+		// Install filesystem package first
+		packagesInstalled, err = PkgInstallWithProgress("mariner-release", installRoot, packagesInstalled, totalPackages, true, debian)
 		if err != nil {
-			logger.Log.Warnf("Failed to install dpkg %v\n", err)
+			logger.Log.Warnf("Failed to install mariner-release %v\n", err)
 			return
-		} else {
-			logger.Log.Warn("Success install dpkg")
 		}
-
-		err = initializeDpkgDatabase(installRoot)
-		if err != nil {
-			logger.Log.Debug("Issue Creating DPKG database.")
-		}
-		// TODO Install apt and xxhash
 	}
 	// Install filesystem package first
 	packagesInstalled, err = PkgInstallWithProgress(filesystemPkg, installRoot, packagesInstalled, totalPackages, true, debian)
@@ -431,7 +452,31 @@ func PopulateInstallRoot(installChroot *safechroot.Chroot, packagesToInstall []s
 		logger.Log.Warnf("Failed to install filesystem %v\n", err)
 		return
 	}
-
+	if debian {
+		var (
+			stdout string
+			stderr string
+		)
+	/*	stdout, stderr, err = shell.Execute("rm", "-fR", installRoot+"/lib", installRoot+"/sbin")
+		if err != nil {
+			logger.Log.Warnf("Failed to remove lib & sbin: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+		stdout, stderr, err = shell.Execute("ln", "-svfn", "usr/lib", installRoot+"/lib")
+		if err != nil {
+			logger.Log.Warnf("Failed to create symlink for lib: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+		*/
+		stdout, stderr, err = shell.Execute("ln", "-svfn", "/usr/sbin", installRoot+"/sbin")
+		if err != nil {
+			logger.Log.Warnf("Failed to create symlink for sbin: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+	}
 	hostname := config.Hostname
 	if !isRootFS && mountPointToFsTypeMap[rootMountPoint] != overlay {
 		// Add /etc/hostname
@@ -444,17 +489,48 @@ func PopulateInstallRoot(installChroot *safechroot.Chroot, packagesToInstall []s
 	// Install packages one-by-one to avoid exhausting memory
 	// on low resource systems
 	if debian {
-		for pkg, install := range allPackagesName {
-			if !install {
-				continue
-			}
+		//var pkglist PackageList
+		//pkglist , err = getPackagesFromJSON("/debian/sortedList.json")
+		//pkglist , err = getPackagesFromJSON("/debian/sortedList-full.json")
+		//if err != nil {
+		//	logger.Log.Warnf("Error parsing Jsong file %v\n", err)
+		//	return
+		//}
+//		var failedPkgs []string
+		for _, pkg := range allPkgsName {
 			packagesInstalled, err = PkgInstallWithProgress(pkg, installRoot, packagesInstalled, totalPackages, true, debian)
 			if err != nil {
 				logger.Log.Debugf("failed to install debian pkg %v", pkg)
+			//	failedPkgs = append(failedPkgs, pkg)
+				/* Retry */
+				/* Somehow systemd fails for /usr/sbin/halt not found. Just extract it and reinstall */
+				packagesInstalled, err = PkgInstallWithProgressHelper(pkg, installRoot, packagesInstalled, totalPackages, true, debian, true)
+				if err != nil {
+					logger.Log.Debugf("Retry: failed to install debian pkg %v", pkg)
+				} else {
+					logger.Log.Debugf("Retry: successfully installed pkg %v", pkg)
+					packagesInstalled, err = PkgInstallWithProgress(pkg, installRoot, packagesInstalled, totalPackages, true, debian)
+					if err != nil {
+						logger.Log.Debugf("Retry: failed to install debian pkg %v", pkg)
+					}
+				}
 			} else {
 				logger.Log.Debugf("successfully installed pkg %v", pkg)
 			}
 		}
+		/* Retry
+		for _, pkg := range failedPkgs {
+			packagesInstalled, err = PkgInstallWithProgressHelper(pkg, installRoot, packagesInstalled, totalPackages, true, debian, true)
+			if err != nil {
+				logger.Log.Debugf("Retry: failed to install debian pkg %v", pkg)
+			} else {
+				logger.Log.Debugf("Retry: successfully installed pkg %v", pkg)
+				packagesInstalled, err = PkgInstallWithProgress(pkg, installRoot, packagesInstalled, totalPackages, true, debian)
+				if err != nil {
+					logger.Log.Debugf("Retry: failed to install debian pkg %v", pkg)
+				}
+			}
+		} */
 	} else {
 		for _, pkg := range packagesToInstall {
 			packagesInstalled, err = PkgInstallWithProgress(pkg, installRoot, packagesInstalled, totalPackages, true, debian)
@@ -469,9 +545,74 @@ func PopulateInstallRoot(installChroot *safechroot.Chroot, packagesToInstall []s
 			stdout string
 			stderr string
 		)
+		stdout, stderr, err = shell.Execute("ln", "-svfn", "usr/sbin", installRoot+"/sbin")
+		if err != nil {
+			logger.Log.Warnf("Failed to create symlink for sbin: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+		stdout, stderr, err = shell.Execute("rm", "-fR", installRoot+"/lib", installRoot+"/sbin")
+		if err != nil {
+			logger.Log.Warnf("Failed to remove lib & sbin: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+		stdout, stderr, err = shell.Execute("ln", "-svfn", "usr/lib", installRoot+"/lib")
+		if err != nil {
+			logger.Log.Warnf("Failed to create symlink for lib: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+		/* re-install systemd */
+		packagesInstalled, err = PkgInstallWithProgress("systemd", installRoot, packagesInstalled, totalPackages, true, debian)
+		if err != nil {
+			logger.Log.Warnf("End: Failed to install systemd%v\n", err)
+			return
+		}
 		stdout, stderr, err = shell.Execute("ldconfig", "-r", installRoot)
 		if err != nil {
 			logger.Log.Warnf("Failed to perform ldconfig : %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+
+		/*
+		time="2022-04-07T19:22:47Z" level=warning msg="/installroot//var/lib/dpkg/info/shadow-utils.postinst: line 3: /usr/sbin/pwconv: No such file or directory"
+		time="2022-04-07T19:22:47Z" level=warning msg="/installroot//var/lib/dpkg/info/shadow-utils.postinst: line 4: /usr/sbin/grpconv: No such file or directory"
+		*/
+
+		stdout, stderr, err = shell.Execute(installRoot+"/usr/sbin/pwconv")
+		if err != nil {
+			logger.Log.Warnf("Failed to pwconv: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+
+		stdout, stderr, err = shell.Execute(installRoot+"/usr/sbin/grpconv")
+		if err != nil {
+			logger.Log.Warnf("Failed to grpconv: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+
+		stdout, stderr, err = shell.Execute("/sbin/depmod", "-a", "5.15.18.1-2.cm2", "-b", installRoot)
+		if err != nil {
+			logger.Log.Warnf("Failed to depmod: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+
+		/* mkinitrd -q /boot/initrd.img-$k $k -k */
+		stdout, stderr, err = shell.Execute(installRoot+"/usr/bin/mkinitrd", installRoot+"/boot/initrd.img-5.15.18.1-2.cm2", "5.15.18.1-2.cm2", "-k")
+		if err != nil {
+			logger.Log.Warnf("Failed to mkinitrd: %v", err)
+			logger.Log.Warn(stdout)
+			logger.Log.Warn(stderr)
+		}
+
+		stdout, stderr, err = shell.Execute("ln", "-s", "linux-5.15.18.1-2.cm2.cfg", installRoot+"/boot/mariner.cfg")
+		if err != nil {
+			logger.Log.Warnf("Failed to create softlink : %v", err)
 			logger.Log.Warn(stdout)
 			logger.Log.Warn(stderr)
 		}
@@ -498,6 +639,7 @@ func PopulateInstallRoot(installChroot *safechroot.Chroot, packagesToInstall []s
 	}
 
 	// Add users
+	// TODO add _apt user
 	err = addUsers(installChroot, config.Users)
 	if err != nil {
 		return
@@ -564,8 +706,11 @@ func PkgInstall(packageName, installRoot string, debian bool) (packagesInstalled
 	return
 }
 
-// PkgInstallWithProgress installs a package in the current environment while optionally reporting progress
 func PkgInstallWithProgress(packageName, installRoot string, currentPackagesInstalled, totalPackages int, reportProgress bool, debian bool) (packagesInstalled int, err error) {
+	return PkgInstallWithProgressHelper(packageName, installRoot, 0, 0, false, debian, false)
+}
+// PkgInstallWithProgress installs a package in the current environment while optionally reporting progress
+func PkgInstallWithProgressHelper(packageName, installRoot string, currentPackagesInstalled, totalPackages int, reportProgress bool, debian bool, extract bool) (packagesInstalled int, err error) {
 	packagesInstalled = currentPackagesInstalled
 
 	onStdout := func(args ...interface{}) {
@@ -600,7 +745,8 @@ func PkgInstallWithProgress(packageName, installRoot string, currentPackagesInst
 	}
 
 	if debian {
-		mpackageName := "/debian/DEBS/" + packageName + "_*"
+		//mpackageName := "/debian/DEBS/" + packageName + "_*"
+		mpackageName := "/debian/DEBS/" + packageName +  "_*"
 		err = filepath.Walk("/debian", func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				fmt.Println(err)
@@ -611,11 +757,22 @@ func PkgInstallWithProgress(packageName, installRoot string, currentPackagesInst
 				logger.Log.Debugf("dir: %v: name: %s\n", info.IsDir(), path)
 				//ignorepkg := "--ignore-depends=debhelper,rpm,dpkg-dev,make,cpio,rpm2cpio"
 				//err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "dpkg", ignorepkg, "--force-overwrite", "--root", installRoot, "--install", path)
-				err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "dpkg", "--force-depends", "--force-overwrite", "--root", installRoot, "--install", path)
-				//err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "dpkg-deb", "-x", path, installRoot)
+				//err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "dpkg", "--force-confnew", "--force-depends", "--force-overwrite", "--root", installRoot, "--install", path)
+				if extract {
+					err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "dpkg-deb", "-x", path, installRoot)
+				} else {
+					err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "dpkg", "--force-all", "--root", installRoot, "--install", path)
+				}
 				if err != nil {
 					logger.Log.Warnf("Failed to dpkg install: %v. Package name: %v", err, packageName)
+					return err
 				}
+				/*
+				err = shell.ExecuteLiveWithCallback(onStdout, logger.Log.Warn, true, "cp", path, "/debian/ISO-REPO")
+				if err != nil {
+					logger.Log.Warnf("Failed to copy : %v. Package name: %v", err, packageName)
+					return err
+				} */
 			}
 			return nil
 		})
@@ -702,67 +859,121 @@ func configureSystemFiles(installChroot *safechroot.Chroot, hostname string, con
 	return
 }
 
-func calculateTotalPackages(packages []string, installRoot string) (totalPackages int, err error, allPkgsName map[string]bool) {
-	allPackageNames := make(map[string]bool)
+func CalculateTotalPackages(packages []string, installRoot string, debian bool) (totalPackages int, err error, allPkgsName []string) {
+	var allPackageNames []string
+	uniquePkgList := make(map[string]bool)
+	//var pkgSplit []string
 	const tdnfAssumeNoStdErr = "Error(1032) : Operation aborted.\n"
 
+	var (
+		stdout string
+		stderr string
+	)
 	// For every package calculate what dependencies would also be installed from it.
 	for _, pkg := range packages {
-		var (
-			stdout string
-			stderr string
-		)
-
-		// Issue an install request but stop right before actually performing the install (assumeno)
-		stdout, stderr, err = shell.Execute("tdnf", "install", "--assumeno", "--nogpgcheck", pkg, "--installroot", installRoot)
-		if err != nil {
-			// tdnf aborts the process when it detects an install with --assumeno.
-			if stderr == tdnfAssumeNoStdErr {
-				err = nil
-			} else {
+		//pkgSplit = nil
+/*		if debian {
+			//pkg := strings.Join(packages, " ")
+			stdout, stderr, err = shell.Execute("apt", "install", "--dry-run", pkg)
+			if err != nil {
 				logger.Log.Error(stderr)
 				return
 			}
-		}
 
-		splitStdout := strings.Split(stdout, "\n")
+			splitStdout := strings.Split(stdout, "\n")
 
-		// Search for the list of packages to be installed,
-		// it will be prefixed with a line "Installing:" and will
-		// end with an empty line.
-		inPackageList := false
-		for _, line := range splitStdout {
-			const (
-				packageListPrefix    = "Installing:"
-				packageNameDelimiter = " "
-			)
+			// Search for the list of packages to be installed,
+			// it will be prefixed with a line "Installing:" and will
+			// end with an empty line.
+			inPackageList := false
+			for _, line := range splitStdout {
+				const (
+					packageListPrefix    = "Inst"
+					packageNameDelimiter = " "
+				)
 
-			const (
-				packageNameIndex      = iota
-				extraInformationIndex = iota
-				totalPackageNameParts = iota
-			)
+				const (
+					pkgListPrefixIndex    = iota
+					packageNameIndex      = iota
+				)
 
-			if !inPackageList {
 				inPackageList = strings.HasPrefix(line, packageListPrefix)
-				continue
-			} else if strings.TrimSpace(line) == "" {
-				break
+				if !inPackageList {
+					continue
+				}
+
+				// Each package to be installed will list its name, followed by a space and then various extra information
+				pkgSplit = strings.Split(line, packageNameDelimiter)
+				_, ok := uniquePkgList[pkgSplit[packageNameIndex]]
+				if !ok {
+					allPackageNames = append(allPackageNames, pkgSplit[packageNameIndex])
+					uniquePkgList[pkgSplit[packageNameIndex]] = true
+				}
+			}
+		} else {
+			*/
+			// Issue an install request but stop right before actually performing the install (assumeno)
+			stdout, stderr, err = shell.Execute("tdnf", "install", "--assumeno", "--nogpgcheck", pkg, "--installroot", installRoot)
+			if err != nil {
+				// tdnf aborts the process when it detects an install with --assumeno.
+				if stderr == tdnfAssumeNoStdErr {
+					err = nil
+				} else {
+					logger.Log.Error(stderr)
+					return
+				}
 			}
 
-			// Each package to be installed will list its name, followed by a space and then various extra information
-			pkgSplit := strings.SplitN(line, packageNameDelimiter, totalPackageNameParts)
-			if len(pkgSplit) != totalPackageNameParts {
-				err = fmt.Errorf("unexpected TDNF package name output: %s", line)
-				return
-			}
+			splitStdout := strings.Split(stdout, "\n")
 
-			allPackageNames[pkgSplit[packageNameIndex]] = true
-		}
+			// Search for the list of packages to be installed,
+			// it will be prefixed with a line "Installing:" and will
+			// end with an empty line.
+			inPackageList := false
+			for _, line := range splitStdout {
+				const (
+					packageListPrefix    = "Installing:"
+					packageNameDelimiter = " "
+				)
+
+				const (
+					packageNameIndex      = iota
+					extraInformationIndex = iota
+					totalPackageNameParts = iota
+				)
+
+				if !inPackageList {
+					inPackageList = strings.HasPrefix(line, packageListPrefix)
+					continue
+				} else if strings.TrimSpace(line) == "" {
+					break
+				}
+
+				// Each package to be installed will list its name, followed by a space and then various extra information
+				pkgSplit := strings.SplitN(line, packageNameDelimiter, totalPackageNameParts)
+				if len(pkgSplit) != totalPackageNameParts {
+					err = fmt.Errorf("unexpected TDNF package name output: %s", line)
+					return
+				}
+
+				pkgSplit = strings.Split(line, packageNameDelimiter)
+				var pkgName string
+				if debian {
+					pkgName = debparser.ProcessDebianSpecificName(pkgSplit[packageNameIndex])
+				} else {
+					pkgName = pkgSplit[packageNameIndex]
+				}
+				_, ok := uniquePkgList[pkgName]
+				if !ok && pkgName != "filesystem" {
+					allPackageNames = append(allPackageNames, pkgName)
+					uniquePkgList[pkgName] = true
+				}
+			}
+		//}
 	}
 	allPkgsName = allPackageNames
 	totalPackages = len(allPackageNames)
-	logger.Log.Debugf("All packages to be installed (%d): %v", totalPackages, allPackageNames)
+	logger.Log.Debugf("All packages to be installed (%d): %v", totalPackages, allPkgsName)
 	return
 }
 
